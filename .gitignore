@@ -1,0 +1,29 @@
+# ── RAHASIA — jangan pernah di-commit ──
+.env
+.env.local
+*.key
+*token*
+secrets*
+
+# Data runtime bot
+.xau_signal/
+*.csv
+calibration.json
+state.json
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

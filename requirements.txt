@@ -1,0 +1,8 @@
+# Wajib
+pandas>=2.0
+numpy>=1.24
+requests>=2.31
+
+# Sumber data gratis (dipakai berjenjang, semuanya opsional)
+dukascopy-python>=4.0    # tanpa API key, riwayat panjang — untuk backtest & jurnal
+yfinance>=0.2.40         # cadangan terakhir, rawan rate-limit
