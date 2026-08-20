@@ -89,6 +89,10 @@ python xau_signal.py --dry-run
 | `python journal.py update` | nilai hasil sinyal |
 | `python journal.py report` | statistik nyata |
 | `python frequency.py 90` | perkiraan frekuensi sinyal |
+| `python learn.py power` | berapa data dibutuhkan untuk menyimpulkan |
+| `python learn.py walkforward` | apakah sistem stabil lintas periode |
+| `python learn.py ablation` | komponen mana yang berguna |
+| `python learn.py calibration` | apakah confidence-nya jujur |
 
 ## Jadwal
 
@@ -106,6 +110,7 @@ python xau_signal.py --dry-run
 | [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md) | keputusan desain dan alasannya |
 | [docs/SINYAL.md](docs/SINYAL.md) | arti tiap bagian pesan, grade, skor |
 | [docs/CATATAN-BUG.md](docs/CATATAN-BUG.md) | bug yang ditemukan & cara menemukannya |
+| [docs/PEMBELAJARAN.md](docs/PEMBELAJARAN.md) | cara memperbaiki sistem tanpa menipu diri |
 
 ## Yang belum ada
 

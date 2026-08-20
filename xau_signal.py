@@ -56,6 +56,10 @@ MAX_EXTENSION_ATR = 2.5      # jangan kejar harga yang sudah jauh dari EMA20
 VOL_RANGE = (0.6, 2.2)       # regime ATR yang dianggap layak ditradingkan
 MIN_CONFIRMS = 3             # dari 5 syarat konfirmasi
 
+# Override bobot komponen — dipakai learn.py untuk uji ablasi.
+# Kosongkan untuk memakai bobot bawaan. Contoh: {"RSI H1": 0.0}
+WEIGHT_OVERRIDE: dict = {}
+
 NEWS_BLACKOUT_MIN = 60
 COOLDOWN_HOURS = 4
 
@@ -301,7 +305,14 @@ def technical_score(bias: pd.DataFrame, entry: pd.DataFrame,
         "Volatilitas", _clamp((ratio - 1) * 100) * np.sign(comps[0].score or 1), 0.08,
         f"ATR {an:.2f} vs avg {aa:.2f} ({ratio:.2f}×)"))
 
+    if WEIGHT_OVERRIDE:
+        for c in comps:
+            if c.name in WEIGHT_OVERRIDE:
+                c.weight = WEIGHT_OVERRIDE[c.name]
+
     tw = sum(c.weight for c in comps)
+    if tw <= 0:
+        return 0.0, comps
     return _clamp(sum(c.contribution for c in comps) / tw), comps
 
 
