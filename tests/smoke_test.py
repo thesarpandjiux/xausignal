@@ -301,6 +301,27 @@ def main():
     check("perintah asing dapat balasan sopan",
           len(_sent) == 1 and "tidak dikenal" in _sent[0]["text"])
 
+    # Batas /analisa berbasis candle
+    _xh = os.environ["XAU_HOME"]
+    import tempfile as _tf2
+    os.environ["XAU_HOME"] = _tf2.mkdtemp()
+    import importlib
+    importlib.reload(tb)
+    _now = datetime.now(timezone.utc)
+    tb.save_tg_state({"waktu": _now.isoformat(),
+                      "candle": (_now - timedelta(minutes=5)).isoformat(),
+                      "ringkasan": "test"})
+    check("/analisa ditolak saat bar masih baru",
+          tb.cmd_analisa().startswith("\u23f3"))
+    tb.save_tg_state({"waktu": _now.isoformat(),
+                      "candle": (_now - timedelta(minutes=70)).isoformat(),
+                      "ringkasan": "test"})
+    check("/analisa lolos saat bar sudah lewat",
+          not tb.cmd_analisa().startswith("\u23f3"))
+    check("/status tak dibatasi", "Status bot" in tb.cmd_status())
+    os.environ["XAU_HOME"] = _xh
+    importlib.reload(tb)
+
     _rq2.post = _rp
     if _tok is None:
         os.environ.pop("TELEGRAM_BOT_TOKEN", None)

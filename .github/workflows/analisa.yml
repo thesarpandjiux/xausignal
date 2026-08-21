@@ -1,0 +1,52 @@
+name: analisa
+
+# Dipicu oleh Cloudflare Worker saat pengguna mengirim /analisa.
+# Worker tidak bisa menjalankan pandas/numpy, jadi perhitungan berat
+# dikerjakan di sini lalu hasilnya dikirim ke Telegram.
+#
+# repository_dispatch berjalan SEGERA — tidak ada antrean jadwal seperti
+# cron, jadi waktu tempuhnya konsisten ~40-60 detik.
+on:
+  repository_dispatch:
+    types: [analisa]
+  workflow_dispatch:
+
+concurrency:
+  group: analisa
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Ambil state
+        env:
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          rm -rf /tmp/botdata
+          if git ls-remote --exit-code --heads "$REPO_URL" bot-data >/dev/null 2>&1; then
+            git clone --quiet --depth=1 --branch bot-data "$REPO_URL" /tmp/botdata
+          else
+            mkdir -p /tmp/botdata
+          fi
+
+      - name: Analisa & kirim
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          ACCOUNT_BALANCE: ${{ vars.ACCOUNT_BALANCE }}
+          RISK_PCT: ${{ vars.RISK_PCT }}
+          XAU_HOME: /tmp/botdata
+        run: python telegram_bot.py analisa

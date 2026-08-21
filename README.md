@@ -121,12 +121,26 @@ Kirim ke bot Anda:
 | `/laporan` | statistik hasil dari jurnal |
 | `/bantuan` | daftar perintah |
 
-`/analisa` tidak memberi data lebih baru daripada evaluasi terjadwal — sistem
-membaca candle H1 yang sudah tutup, jadi hasilnya sama sampai candle berikutnya.
-Gunanya melihat skor dan syarat mana yang gagal.
+`/status`, `/laporan`, dan `/bantuan` hanya membaca berkas lokal — bebas
+dipanggil kapan saja.
 
-Aktifkan lewat `.github/workflows/commands.yml` (jeda 5–8 menit) atau
-`telegram_bot.py listen` di VPS/Pi (seketika).
+`/analisa` menembak API tiga kali (H1/H4/D1), jadi dibatasi per candle: selama
+belum ada bar H1 baru, jawabannya identik dan bot membalas dengan kapan data
+berikutnya terbit. Ini menjaga jatah 800 permintaan/hari.
+
+Tiga cara menjalankannya:
+
+| Cara | Latensi | Komputer mati? | Setup |
+|---|---|---|---|
+| **Cloudflare Worker** (`cd worker && ./setup.sh`) | ~1 detik | tetap jalan | 5 menit |
+| `./listen.sh` di komputer sendiri | ~1 detik | berhenti | langsung |
+| `commands.yml` (jadwal dimatikan) | 5–30 menit | tetap jalan | — |
+
+Cloudflare Workers gratis 100.000 permintaan/hari. Perintah ringan dijawab
+Worker langsung; `/analisa` memicu GitHub Actions karena butuh pandas/numpy,
+hasilnya menyusul ~1 menit.
+
+Pilih **satu** saja — webhook dan polling saling meniadakan (409 Conflict).
 
 ## Dokumentasi
 

@@ -3,8 +3,10 @@
 telegram_bot.py — terima perintah dari Telegram.
 
 Dua mode:
-    python telegram_bot.py poll      sekali jalan, proses pesan tertunda (GitHub Actions)
-    python telegram_bot.py listen    long-polling terus-menerus (VPS / Raspberry Pi)
+    python telegram_bot.py poll                    sekali cek lalu keluar
+    python telegram_bot.py listen                  long-polling terus-menerus (VPS/Pi)
+    python telegram_bot.py listen --seconds=280    dengar 280 detik lalu keluar (CI)
+    python telegram_bot.py analisa                 jalankan /analisa & kirim (webhook)
 
 Perintah:
     /analisa   kondisi pasar sekarang + alasan ada/tidaknya sinyal
@@ -80,7 +82,59 @@ def cmd_bantuan() -> str:
             "yang sudah tutup, jadi hasilnya sama sampai candle berikutnya.</i>")
 
 
+STATE_FILE = BASE / "tg_state.json"
+
+
+def load_tg_state() -> dict:
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except Exception:
+        return {}
+
+
+def save_tg_state(d: dict) -> None:
+    BASE.mkdir(parents=True, exist_ok=True)
+    STATE_FILE.write_text(json.dumps(d, default=str))
+
+
 def cmd_analisa() -> str:
+    """
+    Batasnya berbasis CANDLE, bukan cooldown buta.
+
+    Sistem membaca candle H1 yang sudah tutup, jadi selama belum ada candle
+    baru, jawabannya identik — memanggil API lagi hanya membakar kuota
+    (3 permintaan per /analisa, jatah gratis 800/hari). Menolak dengan alasan
+    "sabar dulu" tidak informatif; menyebut kapan jawabannya benar-benar
+    berubah jauh lebih berguna.
+    """
+    st = load_tg_state()
+    now = datetime.now(timezone.utc)
+    wib = timezone(timedelta(hours=7))
+
+    last_candle = st.get("candle")
+    if last_candle:
+        try:
+            c = datetime.fromisoformat(last_candle)
+            # Bar berikutnya muncul 1 jam setelah stempel bar terakhir, bukan 2:
+            # penyedia data sering menyertakan candle yang MASIH BERJALAN, jadi
+            # mengasumsikan bar terakhir pasti sudah tutup membuat batas terlalu
+            # panjang. Tambah 2 menit toleransi keterlambatan publikasi.
+            berikutnya = c + timedelta(hours=1, minutes=2)
+            if now < berikutnya:
+                sisa = max(1, int((berikutnya - now).total_seconds() / 60))
+                lalu = int((now - datetime.fromisoformat(st["waktu"])).total_seconds() / 60)
+                return (f"⏳ <b>Belum ada data baru</b>\n\n"
+                        f"Analisis terakhir {lalu} menit lalu, memakai candle H1 "
+                        f"pukul {c.astimezone(wib):%H:%M} WIB.\n\n"
+                        f"Sistem membaca candle per jam, jadi hasilnya "
+                        f"<b>tidak akan berubah</b> sampai candle berikutnya "
+                        f"terbit sekitar <b>{berikutnya.astimezone(wib):%H:%M} WIB</b> "
+                        f"({sisa} menit lagi).\n\n"
+                        f"<i>Ringkasan terakhir:</i>\n{st.get('ringkasan', '—')}\n\n"
+                        f"<i>/status dan /laporan tetap bisa kapan saja.</i>")
+        except Exception:
+            pass
+
     try:
         macro, _ = x.get_ohlc(x.TF_MACRO)
         bias, _ = x.get_ohlc(x.TF_BIAS)
@@ -89,15 +143,22 @@ def cmd_analisa() -> str:
     except Exception as e:
         return f"❌ Gagal mengambil data:\n<code>{str(e)[:300]}</code>"
 
-    now = datetime.now(timezone.utc)
     sig = x.build_signal(bias, entry, macro, events, now, x.load_calibration(),
                          calendar_trusted=cal_ok, data_source=src)
+    teks = _format_analisa(sig, now, src)
 
+    save_tg_state({**st, "waktu": now.isoformat(),
+                   "candle": entry.index[-1].isoformat(),
+                   "ringkasan": f"{sig.direction} · skor {sig.composite:+.1f} "
+                                f"· ${sig.price:,.2f}"})
+    return teks
+
+
+def _format_analisa(sig, now, src) -> str:
     if sig.direction != "NO-TRADE":
         return (x.format_message_simple(sig)
                 + "\n\n<i>Diminta manual. Sinyal ini juga dikirim otomatis.</i>")
 
-    # Tidak ada sinyal — tampilkan kenapa
     wib = now.astimezone(timezone(timedelta(hours=7)))
     L = [f"⚪ <b>Belum ada sinyal</b>",
          f"<i>{wib:%d %b %H:%M} WIB · ${sig.price:,.2f}</i>", ""]
@@ -223,21 +284,92 @@ def handle(update: dict) -> None:
         print(f"[error] {e}", file=sys.stderr)
 
 
-def run(mode: str) -> int:
+def run(mode: str, seconds: int = 0) -> int:
+    """
+    mode='poll'   : sekali cek lalu keluar
+    mode='listen' : long-polling; `seconds` > 0 membatasi durasi (untuk CI)
+
+    Long-polling membuat Telegram MENDORONG pesan begitu Anda kirim, jadi
+    balasan datang dalam hitungan detik selama jendela terbuka — bukan
+    menunggu siklus cron berikutnya.
+    """
     if not os.getenv("TELEGRAM_BOT_TOKEN") or not os.getenv("TELEGRAM_CHAT_ID"):
         print("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID belum diset", file=sys.stderr)
         return 1
 
+    # getUpdates dan webhook saling meniadakan. TAPI jangan asal hapus:
+    # webhook itu bisa milik aplikasi lain yang sedang berjalan, dan
+    # menghapusnya diam-diam tiap 5 menit akan merusaknya tanpa jejak.
+    try:
+        info = api("getWebhookInfo")
+        url = (info or {}).get("url", "")
+        if url:
+            print("=" * 58, file=sys.stderr)
+            print("BOT INI SUDAH DIPAKAI APLIKASI LAIN", file=sys.stderr)
+            print(f"  webhook aktif : {url[:60]}", file=sys.stderr)
+            print(f"  tertunda      : {info.get('pending_update_count', 0)} pesan",
+                  file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Telegram hanya mengizinkan SATU konsumen per bot.", file=sys.stderr)
+            print("Fitur perintah dilewati agar aplikasi itu tidak rusak.",
+                  file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Solusi: buat bot terpisah lewat @BotFather untuk bot sinyal ini,",
+                  file=sys.stderr)
+            print("lalu perbarui TELEGRAM_BOT_TOKEN. Pengiriman sinyal TIDAK",
+                  file=sys.stderr)
+            print("terpengaruh — hanya /analisa dan /status yang butuh polling.",
+                  file=sys.stderr)
+            print("", file=sys.stderr)
+            print("Kalau webhook itu memang tidak terpakai lagi:", file=sys.stderr)
+            print("  TG_TAKEOVER_WEBHOOK=1  untuk menghapusnya.", file=sys.stderr)
+            print("=" * 58, file=sys.stderr)
+
+            if os.getenv("TG_TAKEOVER_WEBHOOK", "").strip() not in ("1", "true", "yes"):
+                return 0            # bukan kegagalan — keputusan sadar
+            print("[info] TG_TAKEOVER_WEBHOOK aktif, menghapus webhook",
+                  file=sys.stderr)
+            api("deleteWebhook", drop_pending_updates=False)
+    except Exception as e:
+        print(f"[warn] getWebhookInfo: {e}", file=sys.stderr)
+
     offset = load_offset()
     once = mode == "poll"
+    conflicts = 0
+    batas = time.time() + seconds if seconds else None
 
     while True:
+        if batas and time.time() >= batas:
+            save_offset(offset)
+            print("durasi habis, keluar")
+            return 0
         try:
-            ups = api("getUpdates", offset=offset,
-                      timeout=0 if once else POLL_TIMEOUT,
+            # Jangan minta timeout lebih lama dari sisa durasi, supaya
+            # job tidak digantung melewati batasnya.
+            tmo = 0 if once else POLL_TIMEOUT
+            if batas:
+                tmo = max(1, min(tmo, int(batas - time.time())))
+            ups = api("getUpdates", offset=offset, timeout=tmo,
                       allowed_updates=["message"])
+            conflicts = 0
         except Exception as e:
-            print(f"[warn] getUpdates: {e}", file=sys.stderr)
+            msg = str(e)
+            # 409 = instance lain masih memegang koneksi. Ini biasanya
+            # sementara: permintaan long-poll sebelumnya belum tertutup di
+            # sisi Telegram. Tunggu sebentar, jangan langsung menyerah.
+            if "409" in msg or "Conflict" in msg:
+                conflicts += 1
+                if conflicts <= 3:
+                    print(f"[warn] 409 conflict, coba lagi ({conflicts}/3)",
+                          file=sys.stderr)
+                    time.sleep(5 * conflicts)
+                    continue
+                print("[warn] masih 409 setelah 3 percobaan — kemungkinan ada "
+                      "instance lain berjalan. Dilewati.", file=sys.stderr)
+                # Jangan buat run merah: konflik sementara bukan kegagalan.
+                return 0 if once else 1
+
+            print(f"[warn] getUpdates: {msg}", file=sys.stderr)
             if once:
                 return 1
             time.sleep(10)
@@ -254,14 +386,37 @@ def run(mode: str) -> int:
             return 0
 
 
+def cmd_kirim_analisa() -> int:
+    """Jalankan /analisa lalu kirim hasilnya. Dipicu Cloudflare Worker."""
+    chat = os.getenv("TELEGRAM_CHAT_ID")
+    if not chat:
+        print("TELEGRAM_CHAT_ID belum diset", file=sys.stderr)
+        return 1
+    # Worker sudah membalas "sedang dianalisis", jadi batas per-candle tidak
+    # relevan di sini — pengguna memang sudah menunggu jawaban.
+    save_tg_state({})
+    reply(chat, cmd_analisa())
+    print("analisa terkirim")
+    return 0
+
+
 def main() -> int:
-    mode = sys.argv[1] if len(sys.argv) > 1 else "poll"
+    args = sys.argv[1:]
+    mode = args[0] if args else "poll"
+    if mode == "analisa":
+        return cmd_kirim_analisa()
     if mode not in ("poll", "listen"):
         print(__doc__)
         return 1
+
+    seconds = 0
+    for a in args[1:]:
+        if a.startswith("--seconds="):
+            seconds = int(a.split("=", 1)[1])
+
     if mode == "listen":
-        print("Mendengarkan perintah… Ctrl+C untuk berhenti.")
-    return run(mode)
+        print(f"Mendengarkan{f' {seconds} detik' if seconds else '… Ctrl+C untuk berhenti'}")
+    return run(mode, seconds)
 
 
 if __name__ == "__main__":

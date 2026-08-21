@@ -1,17 +1,30 @@
 name: commands
 
-# Memeriksa perintah Telegram tiap 5 menit.
+# Cadangan untuk perintah Telegram saat komputer Anda mati.
 #
-# Ini kompromi, bukan solusi ideal. GitHub Actions tidak bisa menjalankan
-# proses yang hidup terus, jadi tidak ada long-polling. Jeda jawaban 5–8 menit.
-# Untuk balasan seketika, jalankan di VPS/Raspberry Pi:
+# PENTING: jadwal GitHub Actions TIDAK dijamin. Dokumentasi GitHub sendiri
+# menyebut job terjadwal bisa tertunda saat beban tinggi dan sebagian yang
+# mengantre akan DIBUANG. Keterlambatan 5-30 menit lazim; saat gangguan bisa
+# berjam-jam atau tidak jalan sama sekali.
+#
+# Untuk balasan dalam hitungan detik, jalankan di komputer Anda sendiri:
+#     ./listen.sh
+# atau di VPS/Raspberry Pi:
 #     python telegram_bot.py listen
 #
 # Repo PUBLIK punya menit tanpa batas. Repo PRIVAT dibatasi 2.000 menit/bulan
 # dan workflow ini akan melampauinya — matikan bila repo Anda privat.
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # JADWAL SENGAJA DIMATIKAN.
+  #
+  # Untuk perintah interaktif, jalankan ./listen.sh di komputer Anda —
+  # balasan datang dalam hitungan detik. Dua pendengar pada bot yang sama
+  # akan bentrok (409 Conflict), jadi pilih salah satu.
+  #
+  # Aktifkan jadwal ini HANYA bila Anda tidak menjalankan listen.sh sama
+  # sekali dan rela menunggu 5-30 menit (jadwal GitHub tidak dijamin):
+  #   schedule:
+  #     - cron: "3,9,16,23,29,36,43,49,56 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -19,25 +32,31 @@ permissions:
 
 concurrency:
   group: commands
-  cancel-in-progress: false
+  # true, bukan false: run baru mengambil alih listener lama. Dua listener
+  # bersamaan pada bot yang sama menghasilkan 409 Conflict.
+  cancel-in-progress: true
 
 jobs:
   poll:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 6
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ambil state
+      # Branch TERPISAH dari bot-data. Kedua workflow memakai
+      # push --force dan sama-sama berjalan di menit ke-5; kalau
+      # menulis ke branch yang sama, yang selesai belakangan
+      # menimpa hasil yang lain dan riwayat sinyal hilang.
+      - name: Ambil offset
         env:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
-          rm -rf /tmp/botdata
-          if git ls-remote --exit-code --heads "$REPO_URL" bot-data >/dev/null 2>&1; then
-            git clone --quiet --depth=1 --branch bot-data "$REPO_URL" /tmp/botdata
+          rm -rf /tmp/botcmd
+          if git ls-remote --exit-code --heads "$REPO_URL" bot-cmd >/dev/null 2>&1; then
+            git clone --quiet --depth=1 --branch bot-cmd "$REPO_URL" /tmp/botcmd
           else
-            mkdir -p /tmp/botdata
+            mkdir -p /tmp/botcmd
           fi
 
       - uses: actions/setup-python@v5
@@ -47,24 +66,27 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Proses perintah
+      - name: Dengarkan perintah (280 detik)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           ACCOUNT_BALANCE: ${{ vars.ACCOUNT_BALANCE }}
           RISK_PCT: ${{ vars.RISK_PCT }}
-          XAU_HOME: /tmp/botdata
-        run: python telegram_bot.py poll
+          XAU_HOME: /tmp/botcmd
+        # listen, bukan poll: long-polling membuat Telegram mendorong pesan
+        # begitu dikirim, jadi balasan datang dalam hitungan DETIK selama
+        # jendela terbuka. Sekali-cek berarti menunggu siklus berikutnya.
+        run: python telegram_bot.py listen --seconds=280
 
       - name: Simpan offset
         if: always()
         env:
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
         run: |
-          cd /tmp/botdata
+          cd /tmp/botcmd
           rm -rf cache
-          [ -e .git ] || git init -q -b bot-data
+          [ -e .git ] || git init -q -b bot-cmd
           git config user.name  "xausignal-bot"
           git config user.email "bot@users.noreply.github.com"
           git remote set-url origin "$REPO_URL" 2>/dev/null \
@@ -74,5 +96,5 @@ jobs:
             echo "tidak ada perubahan"
           else
             git commit -q -m "offset: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push -q origin HEAD:bot-data --force
+            git push -q origin HEAD:bot-cmd --force
           fi

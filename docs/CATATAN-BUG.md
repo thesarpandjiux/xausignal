@@ -1,6 +1,6 @@
 # Catatan Bug
 
-Tiga belas cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
+Lima belas cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
 Dokumen ini disimpan karena polanya lebih berguna daripada daftarnya.
 
 **Tidak satu pun ketemu dengan membaca kode.** Semuanya ketemu dengan
@@ -262,9 +262,73 @@ satu jalur; bugnya baru muncul di run kedua.
 
 ---
 
+## 14. getUpdates 409 Conflict
+
+**Gejala** — workflow `commands` gagal: `409 Client Error: Conflict` pada
+`getUpdates`.
+
+**Sebab** — `getUpdates` dan webhook saling meniadakan di Telegram. Bila
+webhook pernah didaftarkan pada bot itu, `getUpdates` selalu ditolak. Penyebab
+lain: permintaan long-poll sebelumnya belum tertutup di sisi Telegram, sehingga
+panggilan baru dianggap bentrok.
+
+**Perbaikan** — panggil `deleteWebhook` sebelum polling (aman meski tidak ada
+webhook), lalu retry 409 sampai 3 kali dengan jeda bertambah. Bila tetap
+bentrok, keluar dengan kode 0: konflik sementara pada job yang berjalan 288×
+sehari bukan kegagalan, dan tanda merah palsu membuat riwayat Actions sulit
+dibaca. Error lain seperti 401 tetap mengembalikan kode 1 agar terlihat.
+
+**Pola** — dua mekanisme API yang saling eksklusif, tanpa pemeriksaan awal.
+Dan: tidak semua kegagalan layak membuat build merah — membedakan gangguan
+sementara dari kerusakan nyata menjaga sinyal peringatan tetap bermakna.
+
+### Perbaikan pertama justru merusak
+
+Versi pertama memanggil `deleteWebhook` tanpa syarat, dengan asumsi webhook
+yang ada pasti sisa percobaan. Ternyata pengguna punya aplikasi LAIN yang
+memakai bot yang sama — dan kode itu akan menghapus webhooknya diam-diam
+**setiap 5 menit**, merusak aplikasi tersebut tanpa jejak apa pun.
+
+Sekarang: `getWebhookInfo` diperiksa dulu. Bila ada webhook, fitur perintah
+dilewati dengan penjelasan, dan penghapusan hanya terjadi bila
+`TG_TAKEOVER_WEBHOOK=1` diset secara sadar.
+
+**Pelajaran** — perbaikan yang menghapus keadaan milik pihak lain harus minta
+izin, bukan berasumsi. Operasi destruktif yang berjalan otomatis dan berulang
+adalah kombinasi terburuk: kerusakannya senyap dan terus-menerus.
+
+---
+
+## 15. Dua workflow saling menimpa branch state
+
+**Gejala** — belum sempat terlihat; ditemukan saat menelusuri keluhan lain.
+Gejalanya akan berupa baris sinyal yang hilang dari `signals.csv` tanpa sebab,
+atau perintah Telegram yang diproses dua kali.
+
+**Sebab** — `signal.yml` dan `commands.yml` sama-sama `git clone` branch
+`bot-data`, memodifikasinya, lalu `git push --force`. Keduanya berjalan pada
+menit ke-5. Yang selesai belakangan menimpa seluruh hasil yang lain:
+
+```
+14:05  signal   clone bot-data
+14:05  commands clone bot-data          (isi sama)
+14:06  signal   tulis signals.csv → push --force
+14:07  commands tulis tg_offset  → push --force   ← baris sinyal hilang
+```
+
+**Perbaikan** — `commands.yml` memakai branch sendiri, `bot-cmd`. Offset
+perintah dan riwayat sinyal adalah data yang tidak berhubungan; menaruhnya di
+satu tempat hanya menciptakan perlombaan tanpa manfaat.
+
+**Pola** — `--force` menghilangkan pengaman bawaan git. Git sebenarnya akan
+menolak push yang menimpa commit orang lain; `--force` justru memerintahkannya
+menimpa. Dua penulis + satu branch + force = kehilangan data senyap.
+
+---
+
 ## Kesimpulan
 
-Sembilan dari tiga belas bug menghasilkan sistem yang **tetap berjalan tanpa error**.
+Sepuluh dari lima belas bug menghasilkan sistem yang **tetap berjalan tanpa error**.
 Tidak ada exception, tidak ada log merah — hanya perilaku yang salah secara
 diam-diam.
 

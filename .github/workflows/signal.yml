@@ -4,10 +4,10 @@ name: signal
 # Laptop boleh mati, bot tetap jalan.
 on:
   schedule:
-    # Tiap jam pada menit ke-5, memberi jeda setelah candle H1 tutup.
-    # Catatan: jadwal GitHub bersifat "best effort" — saat beban tinggi
-    # bisa tertunda 5–20 menit, kadang terlewat sama sekali.
-    - cron: "5 * * * *"
+    # Menit 13, bukan 5. GitHub memproses gelombang tugas terjadwal di awal
+    # tiap jam; menit ganjil di luar puncak dilayani jauh lebih cepat.
+    # Jadwal tetap "best effort" — bisa tertunda, kadang dilewati.
+    - cron: "13 * * * *"
   workflow_dispatch:          # tombol jalankan manual
 
 # Wajib: workflow menulis balik state ke branch bot-data
