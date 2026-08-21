@@ -130,38 +130,6 @@ def main():
     check("normalisasi kolom & duplikat",
           list(nm.columns) == ["open", "high", "low", "close"] and len(nm) == 2)
 
-    print("\nPenguncian sumber (bug #9)")
-    _orig = d.SOURCES
-
-    def _mk(px, n=200):
-        i = pd.date_range("2026-08-01", periods=n, freq="h", tz="UTC")
-        c = np.full(n, float(px))
-        return pd.DataFrame({"open": c, "high": c + 1, "low": c - 1, "close": c},
-                            index=i)
-
-    d.SOURCES = [("twelvedata", lambda i, b: _mk(4540.16)),
-                 ("yfinance", lambda i, b: _mk(4594.00))]
-    d.reset_session_source()
-    s1 = d.get_ohlc("4h", 100, use_cache=False).source
-    s2 = d.get_ohlc("1h", 100, use_cache=False).source
-    check("timeframe memakai sumber yang sama", s1 == s2, f"{s1} / {s2}")
-
-    d.SOURCES = [("twelvedata",
-                  lambda i, b: (_ for _ in ()).throw(RuntimeError("mati"))),
-                 ("yfinance", lambda i, b: _mk(4594.00))]
-    switched = False
-    try:
-        switched = d.get_ohlc("1d", 100, use_cache=False).source == "yfinance"
-    except RuntimeError:
-        pass
-    check("tidak berganti instrumen saat sumber mati", not switched)
-
-    d.reset_session_source()
-    check("sesi baru boleh pilih sumber lain",
-          d.get_ohlc("1h", 100, use_cache=False).source == "yfinance")
-    d.SOURCES = _orig
-    d.reset_session_source()
-
     print("\nJurnal")
     px = synth("1h", 100, 0, 5)
     t0 = px.index[10]

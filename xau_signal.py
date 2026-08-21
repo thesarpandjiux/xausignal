@@ -810,14 +810,13 @@ def log_signal(sig: Signal, sent: bool) -> None:
         if new:
             w.writerow(["time", "id", "direction", "grade", "composite", "tech", "news",
                         "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
-                        "confirms", "sent", "source"])
+                        "confirms", "sent"])
         w.writerow([sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
                     round(sig.composite, 1), round(sig.tech_score, 1),
                     round(sig.news_score, 1), round(sig.price, 2), round(sig.entry, 2),
                     round(sig.stop_loss, 2),
                     *[round(t, 2) if t is not None else "" for t in tps],
-                    round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
-                    sig.data_source.split(" (")[0]])
+                    round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent])
 
 
 def should_send(sig: Signal, state: dict, now: datetime):

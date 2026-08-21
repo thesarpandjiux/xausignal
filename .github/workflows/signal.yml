@@ -1,0 +1,78 @@
+name: signal
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: signal
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ambil state sebelumnya
+        run: |
+          git config user.name  "xausignal-bot"
+          git config user.email "bot@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin bot-data >/dev/null 2>&1; then
+            git fetch origin bot-data --depth=1
+            git worktree add /tmp/botdata origin/bot-data
+          else
+            mkdir -p /tmp/botdata
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install pandas numpy requests
+
+      - name: Jalankan bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          ACCOUNT_BALANCE: ${{ vars.ACCOUNT_BALANCE }}
+          RISK_PCT: ${{ vars.RISK_PCT }}
+          SIMPLE_MODE: "1"
+          XAU_HOME: /tmp/botdata
+        run: python xau_signal.py
+
+      - name: Nilai hasil sinyal lama
+        continue-on-error: true
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          XAU_HOME: /tmp/botdata
+        run: |
+          H=$(date -u +%H)
+          if [ "$H" = "06" ] || [ "$H" = "18" ]; then
+            python journal.py update
+          fi
+
+      - name: Simpan state
+        if: always()
+        run: |
+          cd /tmp/botdata
+          rm -rf cache
+          if [ ! -d .git ]; then
+            git init -q -b bot-data
+            git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+            git config user.name  "xausignal-bot"
+            git config user.email "bot@users.noreply.github.com"
+          fi
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -q -m "state: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push -q origin HEAD:bot-data --force
+          fi

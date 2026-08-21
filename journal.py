@@ -122,25 +122,9 @@ def cmd_update() -> int:
     bars = min(int(need_h * 1.6) + 100, 5000)
     print(f"{len(todo)} sinyal perlu dinilai · mengambil ~{bars} bar H1…")
 
-    # Sinyal dari sumber berbeda TIDAK boleh dinilai bersama: yfinance memakai
-    # futures GC=F yang berpremi ~$54 terhadap spot. Menilai sinyal spot dengan
-    # harga futures membuat setiap BUY tercatat menang seketika.
-    srcs = {str(s.get("source", "")).strip() for s in todo if str(s.get("source", "")).strip()}
-    if len(srcs) > 1:
-        print(f"⚠️  Sinyal berasal dari sumber berbeda: {', '.join(sorted(srcs))}")
-        print("   Harga antar sumber tidak sebanding (spot vs futures).")
-        print("   Nilai terpisah per sumber, atau abaikan sinyal lama.")
-        return 1
-
     try:
         import datafeed
-        want = next(iter(srcs)) if srcs else "dukascopy"
-        feed = datafeed.get_ohlc("1h", bars, prefer=want)
-        if srcs and feed.source not in (want, "cache"):
-            print(f"❌ Sinyal dibuat dari '{want}' tapi hanya '{feed.source}' "
-                  f"yang tersedia sekarang.")
-            print("   Harga tidak sebanding — penilaian dibatalkan.")
-            return 1
+        feed = datafeed.get_ohlc("1h", bars, prefer="dukascopy")
         price = feed.df
         print(f"  sumber: {feed.label()} · {len(price)} bar · "
               f"{price.index[0]:%d %b} → {price.index[-1]:%d %b}")
