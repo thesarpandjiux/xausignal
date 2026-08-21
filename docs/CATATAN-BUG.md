@@ -1,6 +1,6 @@
 # Catatan Bug
 
-Delapan cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
+Sepuluh cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
 Dokumen ini disimpan karena polanya lebih berguna daripada daftarnya.
 
 **Tidak satu pun ketemu dengan membaca kode.** Semuanya ketemu dengan
@@ -162,9 +162,48 @@ akan pernah dipakai orang.
 
 ---
 
+## 9. Sumber data mewakili instrumen berbeda
+
+**Gejala** — terlihat saat `datafeed.py` menampilkan dua sumber sekaligus:
+Twelve Data $4.540,16 dan yfinance $4.594,00. Selisih **$54**, sekitar 9 ATR.
+
+**Sebab** — yfinance memakai `GC=F` (futures emas), yang diperdagangkan dengan
+premi terhadap spot `XAU/USD` karena biaya penyimpanan. Rantai fallback saya
+dirancang berganti sumber otomatis — artinya H4 bisa datang dari spot dan H1
+dari futures dalam satu evaluasi.
+
+**Dampak** — SL/TP dihitung pada satu skala harga lalu dinilai pada skala lain.
+Setiap BUY tercatat menang seketika dan setiap SELL kalah seketika. Tabel
+kalibrasi akan penuh angka indah yang sepenuhnya palsu — dan tidak ada yang
+terlihat rusak.
+
+**Perbaikan** — sumber dikunci per sesi. Bila sumber terkunci mati di tengah
+evaluasi, sistem memakai cache basi dari sumber yang sama, bukan berganti
+instrumen. `signals.csv` mencatat sumbernya, dan `journal.py` menolak menilai
+sinyal dari sumber campuran. `datafeed.py` memperingatkan bila selisih antar
+sumber >0,3%.
+
+**Pola** — asumsi diam-diam bahwa "harga emas adalah harga emas". Fallback yang
+dirancang untuk ketahanan justru jadi sumber kerusakan senyap.
+
+---
+
+## 10. Zona waktu Twelve Data tidak dikunci
+
+**Gejala** — bar terakhir Twelve Data 14:00, yfinance 04:00 pada hari sama.
+
+**Sebab** — Twelve Data memakai zona waktu bursa bila tidak diminta lain,
+sementara kode melabeli semua timestamp sebagai UTC. Pergeseran jam ini merusak
+pencocokan dengan kalender ekonomi — gate blackout bisa melihat jendela waktu
+yang salah.
+
+**Perbaikan** — kirim `timezone=UTC` eksplisit di parameter permintaan.
+
+---
+
 ## Kesimpulan
 
-Enam dari delapan bug menghasilkan sistem yang **tetap berjalan tanpa error**.
+Delapan dari sepuluh bug menghasilkan sistem yang **tetap berjalan tanpa error**.
 Tidak ada exception, tidak ada log merah — hanya perilaku yang salah secara
 diam-diam.
 

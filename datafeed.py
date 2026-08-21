@@ -154,7 +154,11 @@ def from_twelvedata(interval: str, bars: int) -> pd.DataFrame:
     r = requests.get("https://api.twelvedata.com/time_series",
                      params={"symbol": "XAU/USD", "interval": interval,
                              "outputsize": min(bars, 5000), "apikey": key,
-                             "format": "JSON"},
+                             # Tanpa ini Twelve Data memakai zona waktu bursa,
+                             # sementara kode kita melabeli semuanya UTC —
+                             # menghasilkan pergeseran jam yang senyap dan
+                             # merusak pencocokan dengan kalender ekonomi.
+                             "timezone": "UTC", "format": "JSON"},
                      timeout=25)
     r.raise_for_status()
     p = r.json()
@@ -205,6 +209,21 @@ SOURCES = [("twelvedata", from_twelvedata),
            ("dukascopy", from_dukascopy),
            ("yfinance", from_yfinance)]
 
+# Instrumen yang diwakili tiap sumber. yfinance memakai GC=F (futures), yang
+# diperdagangkan dengan PREMI terhadap spot — pernah terukur $54 (≈9 ATR).
+INSTRUMENT = {"twelvedata": "spot XAU/USD", "dukascopy": "spot XAU/USD",
+              "yfinance": "futures GC=F"}
+
+# Sumber yang berhasil pertama kali dikunci untuk seluruh proses.
+# Tanpa ini, H4 bisa datang dari spot dan H1 dari futures dalam satu evaluasi —
+# level SL/TP meleset $54 dan setiap BUY tercatat menang seketika.
+_SESSION_SOURCE: str | None = None
+
+
+def reset_session_source() -> None:
+    global _SESSION_SOURCE
+    _SESSION_SOURCE = None
+
 
 def get_ohlc(interval: str, bars: int = 400, prefer: str | None = None,
              use_cache: bool = True) -> Feed:
@@ -212,6 +231,7 @@ def get_ohlc(interval: str, bars: int = 400, prefer: str | None = None,
     Ambil OHLC dengan cache dan fallback berjenjang.
     prefer='dukascopy' untuk backtest (riwayat panjang, tanpa kuota).
     """
+    global _SESSION_SOURCE
     # Kunci cache TIDAK menyertakan `bars`: menyimpan 400 bar lalu meminta 200
     # seharusnya kena cache, bukan menembak API lagi dan membakar kuota.
     ckey = f"ohlc_{interval}"
@@ -223,7 +243,10 @@ def get_ohlc(interval: str, bars: int = 400, prefer: str | None = None,
             return Feed(df.tail(bars), "cache", stale=False, age_s=age)
 
     order = SOURCES
-    if prefer:
+    if _SESSION_SOURCE:                 # kunci sesi menang atas apa pun
+        order = ([s for s in SOURCES if s[0] == _SESSION_SOURCE]
+                 + [s for s in SOURCES if s[0] != _SESSION_SOURCE])
+    elif prefer:
         order = ([s for s in SOURCES if s[0] == prefer]
                  + [s for s in SOURCES if s[0] != prefer])
 
@@ -234,6 +257,16 @@ def get_ohlc(interval: str, bars: int = 400, prefer: str | None = None,
             if len(df) < 60:
                 raise RuntimeError(f"hanya {len(df)} bar, terlalu sedikit")
             _write_cache(ckey, df)
+
+            if _SESSION_SOURCE is None:
+                _SESSION_SOURCE = name
+            elif name != _SESSION_SOURCE:
+                # Sampai di sini berarti sumber terkunci mati di tengah jalan.
+                # Instrumennya bisa berbeda — jangan campur, lebih baik gagal.
+                raise RuntimeError(
+                    f"sumber berganti {_SESSION_SOURCE} → {name} di tengah "
+                    f"evaluasi ({INSTRUMENT.get(_SESSION_SOURCE)} vs "
+                    f"{INSTRUMENT.get(name)}). Level harga tidak sebanding.")
             return Feed(df, name)
         except Exception as e:
             errors.append(f"{name}: {e}")
@@ -370,16 +403,34 @@ def selftest() -> int:
     print("─" * 52)
 
     ok = 0
+    prices = {}
     for name, fn in SOURCES:
         t0 = time.time()
         try:
             df = fn("1h", 100)
+            px = float(df["close"].iloc[-1])
+            prices[name] = (px, df.index[-1])
             print(f"  ✅ {name:12} {len(df):4d} bar · terakhir "
-                  f"{df.index[-1]:%Y-%m-%d %H:%M} · ${df['close'].iloc[-1]:,.2f} "
+                  f"{df.index[-1]:%Y-%m-%d %H:%M} · ${px:,.2f} "
                   f"· {time.time() - t0:.1f}s")
             ok += 1
         except Exception as e:
             print(f"  ❌ {name:12} {str(e)[:60]}")
+
+    # Bandingkan harga antar sumber. Selisih besar = instrumen berbeda.
+    if len(prices) >= 2:
+        lo = min(p for p, _ in prices.values())
+        hi = max(p for p, _ in prices.values())
+        gap = (hi - lo) / lo * 100 if lo else 0
+        if gap > 0.3:
+            print(f"\n  ⚠️  SELISIH HARGA ANTAR SUMBER: ${hi - lo:,.2f} ({gap:.2f}%)")
+            for n, (p, _) in sorted(prices.items(), key=lambda kv: kv[1][0]):
+                print(f"      {n:<12} ${p:>10,.2f}  ({INSTRUMENT.get(n, '?')})")
+            print("      Futures diperdagangkan dengan premi terhadap spot.")
+            print("      Sumber DIKUNCI per sesi supaya tidak tercampur, tapi")
+            print("      jangan bandingkan sinyal lama dengan sumber berbeda.")
+        else:
+            print(f"\n  ✅ harga antar sumber konsisten (selisih {gap:.2f}%)")
 
     ev, trusted = get_calendar()
     high = sum(1 for e in ev if e["impact"] == "High")
