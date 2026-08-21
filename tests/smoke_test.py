@@ -148,20 +148,28 @@ def main():
     import tempfile as _tf
     _d = _tf.mkdtemp()
     (Path(_d) / ".env").write_text(
-        'export A_TOKEN="abc123"\n'
-        "B_ID='999'\n"
-        "C_VAL=7   # komentar\n"
+        'export A_TOKEN="abc123"      # komentar di belakang (bug #8)\n'
+        "B_ID='999'      # kutip tunggal + komentar\n"
+        "C_VAL=7   # tanpa kutip\n"
+        'E_HASH="pa#ss"      # pagar di dalam kutip\n'
+        'F_EMPTY=""      # kosong + komentar\n'
         "# baris komentar\n\n")
     _cwd = os.getcwd()
     os.chdir(_d)
-    for k in ("A_TOKEN", "B_ID", "C_VAL"):
+    for k in ("A_TOKEN", "B_ID", "C_VAL", "E_HASH", "F_EMPTY"):
         os.environ.pop(k, None)
     os.environ["D_EXISTING"] = "jangan_ditimpa"
     d.load_env()
     os.chdir(_cwd)
-    check("kutip ganda dilepas", os.environ.get("A_TOKEN") == "abc123")
-    check("kutip tunggal dilepas", os.environ.get("B_ID") == "999")
-    check("komentar di belakang dibuang", os.environ.get("C_VAL") == "7")
+    for k in ("E_HASH", "F_EMPTY"):
+        pass
+    check("kutip + komentar di belakang", os.environ.get("A_TOKEN") == "abc123",
+          repr(os.environ.get("A_TOKEN")))
+    check("kutip tunggal + komentar", os.environ.get("B_ID") == "999")
+    check("tanpa kutip + komentar", os.environ.get("C_VAL") == "7")
+    check("pagar di dalam kutip dipertahankan",
+          os.environ.get("E_HASH") == "pa#ss", repr(os.environ.get("E_HASH")))
+    check("nilai kosong tetap kosong", os.environ.get("F_EMPTY") == "")
     check("env yang sudah ada tidak ditimpa",
           os.environ.get("D_EXISTING") == "jangan_ditimpa")
 

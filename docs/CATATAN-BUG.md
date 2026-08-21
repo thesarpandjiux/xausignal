@@ -1,6 +1,6 @@
 # Catatan Bug
 
-Tujuh cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
+Delapan cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
 Dokumen ini disimpan karena polanya lebih berguna daripada daftarnya.
 
 **Tidak satu pun ketemu dengan membaca kode.** Semuanya ketemu dengan
@@ -128,9 +128,43 @@ menulis `.bashrc` di dokumen tanpa mempertimbangkan pengguna memakai Mac.
 
 ---
 
+## 8. Parser .env menelan tanda kutip
+
+**Gejala** — Telegram membalas `404 Not Found`, Twelve Data `401 Unauthorized`,
+padahal token sudah diisi benar.
+
+**Sebab** — parser melepas tanda kutip SEBELUM membuang komentar. Pada baris:
+
+```
+export TELEGRAM_BOT_TOKEN="789:AAF"      # dari @BotFather
+```
+
+karakter terakhir baris adalah `r`, bukan kutip. Syarat "diawali dan diakhiri
+kutip" tidak terpenuhi, jadi kutipnya tidak dilepas. Token tersimpan sebagai
+`"789:AAF"` lengkap dengan petik, lalu ditempel ke URL:
+
+```
+https://api.telegram.org/bot"789:AAF"/sendMessage   → 404
+```
+
+Nilai kosong `""` jadi lebih jahat lagi: menjadi string dua karakter yang
+dianggap "sudah terisi", sehingga API key palsu dikirim ke server → 401.
+
+**Perbaikan** — buang komentar lebih dulu; bila nilai diawali kutip, ambil
+sampai kutip penutup (sehingga `#` di dalam nilai tetap aman). Ditambah
+peringatan di `datafeed.py` bila nilai masih mengandung kutip, spasi, atau
+pagar.
+
+**Pola** — urutan operasi yang salah pada kasus yang tidak diuji. Uji awal saya
+memakai `.env` tanpa komentar di belakang, padahal template `.env.example`
+buatan saya sendiri PENUH komentar di belakang. Saya menguji bentuk yang tidak
+akan pernah dipakai orang.
+
+---
+
 ## Kesimpulan
 
-Lima dari tujuh bug menghasilkan sistem yang **tetap berjalan tanpa error**.
+Enam dari delapan bug menghasilkan sistem yang **tetap berjalan tanpa error**.
 Tidak ada exception, tidak ada log merah — hanya perilaku yang salah secara
 diam-diam.
 

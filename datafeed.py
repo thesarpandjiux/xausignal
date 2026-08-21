@@ -53,9 +53,19 @@ def load_env() -> None:
                     continue
                 k, v = line.split("=", 1)
                 k, v = k.strip(), v.strip()
-                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
-                    v = v[1:-1]
-                v = v.split(" #")[0].strip()
+
+                # URUTAN PENTING: komentar dibuang SEBELUM kutip dilepas.
+                # Kalau dibalik, baris seperti  KEY="abc"  # catatan
+                # membuat karakter terakhir bukan kutip, sehingga kutipnya
+                # ikut jadi bagian nilai — token terkirim sebagai "abc"
+                # lengkap dengan tanda petik, dan URL-nya rusak.
+                if v[:1] in ("\"", "'"):
+                    q = v[0]
+                    end = v.find(q, 1)
+                    v = v[1:end] if end > 0 else v[1:]
+                else:
+                    v = v.split("#")[0].strip()
+
                 if k and k not in os.environ:
                     os.environ[k] = v
         except Exception as e:
@@ -345,11 +355,18 @@ def selftest() -> int:
     for k, wajib in (("TELEGRAM_BOT_TOKEN", True), ("TELEGRAM_CHAT_ID", True),
                      ("TWELVEDATA_API_KEY", False), ("LLM_BASE_URL", False)):
         v = os.getenv(k, "")
-        if v:
-            print(f"  ✅ {k:<20} {v[:8]}…{v[-4:] if len(v) > 12 else ''}")
-        else:
+        if not v:
             print(f"  {'❌' if wajib else '➖'} {k:<20} "
                   f"{'BELUM DISET (wajib)' if wajib else 'kosong (opsional)'}")
+            continue
+        # Nilai yang masih membawa tanda kutip/spasi hampir pasti salah tulis
+        # dan menghasilkan error 401/404 yang membingungkan.
+        kotor = [n for c, n in (('"', 'tanda kutip'), ("'", 'tanda kutip'),
+                                (" ", "spasi"), ("#", "tanda pagar")) if c in v]
+        if kotor:
+            print(f"  ⚠️  {k:<20} berisi {kotor[0]} — kemungkinan salah tulis: {v[:24]!r}")
+        else:
+            print(f"  ✅ {k:<20} {v[:8]}…{v[-4:] if len(v) > 12 else ''}")
     print("─" * 52)
 
     ok = 0
