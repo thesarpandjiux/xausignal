@@ -1,6 +1,6 @@
 # Catatan Bug
 
-Delapan cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
+Tiga belas cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
 Dokumen ini disimpan karena polanya lebih berguna daripada daftarnya.
 
 **Tidak satu pun ketemu dengan membaca kode.** Semuanya ketemu dengan
@@ -162,9 +162,109 @@ akan pernah dipakai orang.
 
 ---
 
+## 9. Sumber data mewakili instrumen berbeda
+
+**Gejala** — terlihat saat `datafeed.py` menampilkan dua sumber sekaligus:
+Twelve Data $4.540,16 dan yfinance $4.594,00. Selisih **$54**, sekitar 9 ATR.
+
+**Sebab** — yfinance memakai `GC=F` (futures emas), yang diperdagangkan dengan
+premi terhadap spot `XAU/USD` karena biaya penyimpanan. Rantai fallback saya
+dirancang berganti sumber otomatis — artinya H4 bisa datang dari spot dan H1
+dari futures dalam satu evaluasi.
+
+**Dampak** — SL/TP dihitung pada satu skala harga lalu dinilai pada skala lain.
+Setiap BUY tercatat menang seketika dan setiap SELL kalah seketika. Tabel
+kalibrasi akan penuh angka indah yang sepenuhnya palsu — dan tidak ada yang
+terlihat rusak.
+
+**Perbaikan** — sumber dikunci per sesi. Bila sumber terkunci mati di tengah
+evaluasi, sistem memakai cache basi dari sumber yang sama, bukan berganti
+instrumen. `signals.csv` mencatat sumbernya, dan `journal.py` menolak menilai
+sinyal dari sumber campuran. `datafeed.py` memperingatkan bila selisih antar
+sumber >0,3%.
+
+**Pola** — asumsi diam-diam bahwa "harga emas adalah harga emas". Fallback yang
+dirancang untuk ketahanan justru jadi sumber kerusakan senyap.
+
+---
+
+## 10. Zona waktu Twelve Data tidak dikunci
+
+**Gejala** — bar terakhir Twelve Data 14:00, yfinance 04:00 pada hari sama.
+
+**Sebab** — Twelve Data memakai zona waktu bursa bila tidak diminta lain,
+sementara kode melabeli semua timestamp sebagai UTC. Pergeseran jam ini merusak
+pencocokan dengan kalender ekonomi — gate blackout bisa melihat jendela waktu
+yang salah.
+
+**Perbaikan** — kirim `timezone=UTC` eksplisit di parameter permintaan.
+
+---
+
+## 11. Nama interval Twelve Data salah
+
+**Gejala** — `400 Bad Request` saat bot dijalankan penuh, padahal
+`datafeed.py` melaporkan Twelve Data hijau.
+
+**Sebab** — Twelve Data memakai `1day`, bukan `1d`. Kode mengirim `1d` mentah.
+Interval `1h` dan `4h` kebetulan valid, sehingga hanya D1 yang gagal.
+
+**Kenapa lolos** — `selftest()` hanya menguji interval `1h`. Sumber dinyatakan
+"hidup" padahal cuma bisa dua dari tiga interval yang dibutuhkan bot.
+
+**Perbaikan** — pemetaan `1d`→`1day`, `1w`→`1week`. Dan `selftest()` kini
+menguji ketiga interval; sumber yang hanya bisa sebagian dilaporkan gagal.
+
+**Pola** — uji yang memeriksa jalur lebih sempit daripada pemakaian nyata.
+Lampu hijau yang tidak berarti apa-apa lebih buruk daripada tidak ada lampu.
+
+Catatan tambahan: parameter `timezone` hanya berlaku untuk interval intraday.
+Untuk `1day` ke atas Twelve Data mengabaikannya dan mengembalikan waktu lokal
+bursa — kini tidak dikirim untuk interval harian agar tidak menyesatkan.
+
+---
+
+## 12. Workflow CI tidak memasang semua dependensi
+
+**Gejala** — di GitHub Actions: `No module named 'dukascopy_python'` dan
+`No module named 'yfinance'`.
+
+**Sebab** — workflow memasang `pandas numpy requests` secara manual, bukan dari
+`requirements.txt`. Kedua sumber cadangan hilang, sehingga satu kegagalan
+Twelve Data langsung mematikan seluruh bot.
+
+**Perbaikan** — `pip install -r requirements.txt`.
+
+**Pola** — daftar dependensi yang digandakan di dua tempat selalu berbeda cepat
+atau lambat.
+
+---
+
+## 13. Workflow gagal simpan state pada run kedua
+
+**Gejala** — run pertama sukses, run kedua gagal: `re-init: ignored` lalu
+`remote origin already exists`, exit code 3.
+
+**Sebab** — dua jalur berbeda menghasilkan struktur berbeda. Run pertama
+membuat repo lewat `git init` (menghasilkan `.git` sebagai **folder**). Run
+berikutnya mengambil state lewat `git worktree` (menghasilkan `.git` sebagai
+**berkas**). Pemeriksaan `[ ! -d .git ]` hanya mengenali folder, sehingga pada
+run kedua ia mencoba init ulang di repo yang sudah ada, lalu menambahkan remote
+yang sudah terdaftar.
+
+**Perbaikan** — buang worktree, pakai `git clone` biasa sehingga kedua jalur
+menghasilkan struktur sama. Pemeriksaan diganti `[ ! -e .git ]`, dan remote
+diset idempoten dengan `set-url || add`.
+
+**Pola** — dua jalur kode menuju keadaan yang seharusnya sama, tapi
+menghasilkan bentuk berbeda. Run pertama selalu lolos karena hanya melewati
+satu jalur; bugnya baru muncul di run kedua.
+
+---
+
 ## Kesimpulan
 
-Enam dari delapan bug menghasilkan sistem yang **tetap berjalan tanpa error**.
+Sembilan dari tiga belas bug menghasilkan sistem yang **tetap berjalan tanpa error**.
 Tidak ada exception, tidak ada log merah — hanya perilaku yang salah secara
 diam-diam.
 

@@ -1,0 +1,78 @@
+name: commands
+
+# Memeriksa perintah Telegram tiap 5 menit.
+#
+# Ini kompromi, bukan solusi ideal. GitHub Actions tidak bisa menjalankan
+# proses yang hidup terus, jadi tidak ada long-polling. Jeda jawaban 5–8 menit.
+# Untuk balasan seketika, jalankan di VPS/Raspberry Pi:
+#     python telegram_bot.py listen
+#
+# Repo PUBLIK punya menit tanpa batas. Repo PRIVAT dibatasi 2.000 menit/bulan
+# dan workflow ini akan melampauinya — matikan bila repo Anda privat.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: commands
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ambil state
+        env:
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          rm -rf /tmp/botdata
+          if git ls-remote --exit-code --heads "$REPO_URL" bot-data >/dev/null 2>&1; then
+            git clone --quiet --depth=1 --branch bot-data "$REPO_URL" /tmp/botdata
+          else
+            mkdir -p /tmp/botdata
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Proses perintah
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          ACCOUNT_BALANCE: ${{ vars.ACCOUNT_BALANCE }}
+          RISK_PCT: ${{ vars.RISK_PCT }}
+          XAU_HOME: /tmp/botdata
+        run: python telegram_bot.py poll
+
+      - name: Simpan offset
+        if: always()
+        env:
+          REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          cd /tmp/botdata
+          rm -rf cache
+          [ -e .git ] || git init -q -b bot-data
+          git config user.name  "xausignal-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git remote set-url origin "$REPO_URL" 2>/dev/null \
+            || git remote add origin "$REPO_URL"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "tidak ada perubahan"
+          else
+            git commit -q -m "offset: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push -q origin HEAD:bot-data --force
+          fi

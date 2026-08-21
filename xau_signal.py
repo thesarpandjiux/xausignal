@@ -62,7 +62,12 @@ MIN_CONFIRMS = 3             # dari 5 syarat konfirmasi
 # Kosongkan untuk memakai bobot bawaan. Contoh: {"RSI H1": 0.0}
 WEIGHT_OVERRIDE: dict = {}
 
-NEWS_BLACKOUT_MIN = 60
+# Blackout ASIMETRIS. Kedua sisi tidak setara:
+#   sebelum rilis → arah benar-benar tidak diketahui, wajib diblokir
+#   setelah rilis → arah sudah terungkap; yang tersisa hanya spread lebar,
+#                   yang normal kembali dalam 15–30 menit
+NEWS_BLACKOUT_BEFORE_MIN = 60
+NEWS_BLACKOUT_AFTER_MIN = 30
 COOLDOWN_HOURS = 4
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
@@ -433,16 +438,20 @@ def fetch_calendar() -> tuple[list[dict], bool]:
 
 
 def check_blackout(events: list[dict], now: datetime):
-    win = timedelta(minutes=NEWS_BLACKOUT_MIN)
+    before = timedelta(minutes=NEWS_BLACKOUT_BEFORE_MIN)
+    after = timedelta(minutes=NEWS_BLACKOUT_AFTER_MIN)
     upcoming, blocker = [], None
     for e in events:
-        d = e["time"] - now
-        if -win <= d <= timedelta(hours=12):
+        d = e["time"] - now                     # positif = belum rilis
+        if -after <= d <= timedelta(hours=12):
             upcoming.append(e)
-        if e["impact"] == "High" and e["country"] in ("USD", "ALL") and abs(d) <= win:
-            m = int(d.total_seconds() / 60)
-            blocker = (f"{e['title']} "
-                       f"({'dalam ' + str(m) if m > 0 else str(-m) + ' mnt lalu'} mnt)")
+        if e["impact"] != "High" or e["country"] not in ("USD", "ALL"):
+            continue
+        m = int(d.total_seconds() / 60)
+        if timedelta(0) < d <= before:
+            blocker = f"{e['title']} (dalam {m} mnt — arah belum diketahui)"
+        elif -after <= d <= timedelta(0):
+            blocker = f"{e['title']} ({-m} mnt lalu — spread masih lebar)"
     upcoming.sort(key=lambda x: x["time"])
     return blocker, upcoming[:4]
 
@@ -810,13 +819,14 @@ def log_signal(sig: Signal, sent: bool) -> None:
         if new:
             w.writerow(["time", "id", "direction", "grade", "composite", "tech", "news",
                         "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
-                        "confirms", "sent"])
+                        "confirms", "sent", "source"])
         w.writerow([sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
                     round(sig.composite, 1), round(sig.tech_score, 1),
                     round(sig.news_score, 1), round(sig.price, 2), round(sig.entry, 2),
                     round(sig.stop_loss, 2),
                     *[round(t, 2) if t is not None else "" for t in tps],
-                    round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent])
+                    round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
+                    sig.data_source.split(" (")[0]])
 
 
 def should_send(sig: Signal, state: dict, now: datetime):

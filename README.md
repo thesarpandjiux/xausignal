@@ -89,6 +89,8 @@ python xau_signal.py --dry-run
 | `python journal.py update` | nilai hasil sinyal |
 | `python journal.py report` | statistik nyata |
 | `python frequency.py 90` | perkiraan frekuensi sinyal |
+| `python telegram_bot.py poll` | proses perintah Telegram sekali |
+| `python telegram_bot.py listen` | dengarkan perintah terus-menerus |
 | `python learn.py power` | berapa data dibutuhkan untuk menyimpulkan |
 | `python learn.py walkforward` | apakah sistem stabil lintas periode |
 | `python learn.py ablation` | komponen mana yang berguna |
@@ -96,11 +98,35 @@ python xau_signal.py --dry-run
 
 ## Jadwal
 
+Cron berjalan di mesin Anda — komputer mati, bot mati. Untuk 24/7 lihat
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md); cara tercepat adalah GitHub Actions
+(`.github/workflows/signal.yml`), gratis dan tanpa mesin baru.
+
+Kalau tetap ingin di mesin sendiri:
+
 ```cron
 2 * * * * cd ~/xausignal && python3 xau_signal.py >> ~/.xau.log 2>&1
 0 8 * * * cd ~/xausignal && python3 journal.py update >> ~/.xau.log 2>&1
 0 3 1 * * cd ~/xausignal && python3 xau_signal.py --backtest >> ~/.xau.log 2>&1
 ```
+
+## Perintah Telegram
+
+Kirim ke bot Anda:
+
+| Perintah | Fungsi |
+|---|---|
+| `/analisa` | kondisi pasar sekarang + alasan ada/tidaknya sinyal |
+| `/status` | bot hidup? sinyal terakhir kapan? |
+| `/laporan` | statistik hasil dari jurnal |
+| `/bantuan` | daftar perintah |
+
+`/analisa` tidak memberi data lebih baru daripada evaluasi terjadwal — sistem
+membaca candle H1 yang sudah tutup, jadi hasilnya sama sampai candle berikutnya.
+Gunanya melihat skor dan syarat mana yang gagal.
+
+Aktifkan lewat `.github/workflows/commands.yml` (jeda 5–8 menit) atau
+`telegram_bot.py listen` di VPS/Pi (seketika).
 
 ## Dokumentasi
 
@@ -111,6 +137,7 @@ python xau_signal.py --dry-run
 | [docs/SINYAL.md](docs/SINYAL.md) | arti tiap bagian pesan, grade, skor |
 | [docs/CATATAN-BUG.md](docs/CATATAN-BUG.md) | bug yang ditemukan & cara menemukannya |
 | [docs/PEMBELAJARAN.md](docs/PEMBELAJARAN.md) | cara memperbaiki sistem tanpa menipu diri |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | menjalankan 24/7 tanpa bergantung komputer |
 
 ## Yang belum ada
 

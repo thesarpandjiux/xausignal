@@ -95,6 +95,21 @@ def main():
            "forecast": "", "previous": ""}]
     check("event high-impact → blackout",
           x.build_signal(b, e, m, ev, now, {}).blackout is not None)
+
+    # Blackout asimetris: sebelum rilis arah tak diketahui (wajib blokir),
+    # sesudah rilis arah sudah terungkap (blokir lebih pendek).
+    def _ev(mins):
+        return [{"title": "NFP", "country": "USD", "impact": "High",
+                 "time": pd.Timestamp(now + timedelta(minutes=mins)),
+                 "forecast": "", "previous": ""}]
+    check("55 mnt sebelum rilis → blokir",
+          x.check_blackout(_ev(55), now)[0] is not None)
+    check("90 mnt sebelum rilis → bebas",
+          x.check_blackout(_ev(90), now)[0] is None)
+    check("25 mnt sesudah rilis → blokir",
+          x.check_blackout(_ev(-25), now)[0] is not None)
+    check("40 mnt sesudah rilis → bebas",
+          x.check_blackout(_ev(-40), now)[0] is None)
     check("kalender normal → tidak diblokir", ok.blackout is None)
 
     print("\nKalibrasi (bug: angka karangan)")
@@ -129,6 +144,73 @@ def main():
     nm = d._normalize(raw)
     check("normalisasi kolom & duplikat",
           list(nm.columns) == ["open", "high", "low", "close"] and len(nm) == 2)
+
+    print("\nPemetaan interval Twelve Data (bug #11)")
+    import requests as _rq
+    _real_get = _rq.get
+    _box = []
+
+    class _R:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"values": [{"datetime": "2026-08-21 10:00:00", "open": "1",
+                                "high": "2", "low": "0", "close": "1.5"}] * 80}
+
+    _rq.get = lambda url, params=None, **k: (_box.append(dict(params or {})), _R())[1]
+    os.environ["TWELVEDATA_API_KEY"] = "dummy"
+    _seen = {}
+    for _iv in ("1h", "4h", "1d"):
+        _box.clear()
+        try:
+            d.from_twelvedata(_iv, 400)
+        except Exception:
+            pass
+        _seen[_iv] = _box[0] if _box else {}
+    _rq.get = _real_get
+    check("1d dipetakan ke 1day", _seen["1d"].get("interval") == "1day",
+          _seen["1d"].get("interval"))
+    check("1h tetap 1h", _seen["1h"].get("interval") == "1h")
+    check("4h tetap 4h", _seen["4h"].get("interval") == "4h")
+    check("timezone UTC dikirim untuk intraday",
+          _seen["1h"].get("timezone") == "UTC")
+    check("timezone tidak dikirim untuk harian",
+          "timezone" not in _seen["1d"])
+
+    print("\nPenguncian sumber (bug #9)")
+    _orig = d.SOURCES
+
+    def _mk(px, n=200):
+        i = pd.date_range("2026-08-01", periods=n, freq="h", tz="UTC")
+        c = np.full(n, float(px))
+        return pd.DataFrame({"open": c, "high": c + 1, "low": c - 1, "close": c},
+                            index=i)
+
+    d.SOURCES = [("twelvedata", lambda i, b: _mk(4540.16)),
+                 ("yfinance", lambda i, b: _mk(4594.00))]
+    d.reset_session_source()
+    s1 = d.get_ohlc("4h", 100, use_cache=False).source
+    s2 = d.get_ohlc("1h", 100, use_cache=False).source
+    check("timeframe memakai sumber yang sama", s1 == s2, f"{s1} / {s2}")
+
+    d.SOURCES = [("twelvedata",
+                  lambda i, b: (_ for _ in ()).throw(RuntimeError("mati"))),
+                 ("yfinance", lambda i, b: _mk(4594.00))]
+    switched = False
+    try:
+        switched = d.get_ohlc("1d", 100, use_cache=False).source == "yfinance"
+    except RuntimeError:
+        pass
+    check("tidak berganti instrumen saat sumber mati", not switched)
+
+    d.reset_session_source()
+    check("sesi baru boleh pilih sumber lain",
+          d.get_ohlc("1h", 100, use_cache=False).source == "yfinance")
+    d.SOURCES = _orig
+    d.reset_session_source()
 
     print("\nJurnal")
     px = synth("1h", 100, 0, 5)
@@ -172,6 +254,62 @@ def main():
     check("nilai kosong tetap kosong", os.environ.get("F_EMPTY") == "")
     check("env yang sudah ada tidak ditimpa",
           os.environ.get("D_EXISTING") == "jangan_ditimpa")
+
+    print("\nPerintah Telegram")
+    import telegram_bot as tb
+    _tok = os.environ.get("TELEGRAM_BOT_TOKEN")
+    _cid = os.environ.get("TELEGRAM_CHAT_ID")
+    os.environ["TELEGRAM_BOT_TOKEN"] = "123:FAKE"
+    os.environ["TELEGRAM_CHAT_ID"] = "99999"
+    _sent = []
+    import requests as _rq2
+    _rp = _rq2.post
+
+    def _fp(url, json=None, **k):
+        _m = url.rsplit("/", 1)[-1]
+
+        class _R:
+            status_code = 200
+
+            def raise_for_status(s):
+                pass
+
+            def json(s):
+                if _m == "sendMessage":
+                    _sent.append(json)
+                    return {"ok": True, "result": {}}
+                return {"ok": True, "result": []}
+        return _R()
+    _rq2.post = _fp
+
+    tb.handle({"update_id": 1,
+               "message": {"chat": {"id": 555555}, "text": "/status"}})
+    check("chat tak dikenal diabaikan", len(_sent) == 0)
+
+    tb.handle({"update_id": 2,
+               "message": {"chat": {"id": 99999}, "text": "/bantuan"}})
+    check("perintah sah dijawab", len(_sent) == 1)
+
+    _sent.clear()
+    tb.handle({"update_id": 3,
+               "message": {"chat": {"id": 99999}, "text": "/BANTUAN@NamaBot"}})
+    check("huruf besar & @suffix dinormalisasi", len(_sent) == 1)
+
+    _sent.clear()
+    tb.handle({"update_id": 4,
+               "message": {"chat": {"id": 99999}, "text": "/tidakada"}})
+    check("perintah asing dapat balasan sopan",
+          len(_sent) == 1 and "tidak dikenal" in _sent[0]["text"])
+
+    _rq2.post = _rp
+    if _tok is None:
+        os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+    else:
+        os.environ["TELEGRAM_BOT_TOKEN"] = _tok
+    if _cid is None:
+        os.environ.pop("TELEGRAM_CHAT_ID", None)
+    else:
+        os.environ["TELEGRAM_CHAT_ID"] = _cid
 
     print("\nUtilitas")
     check("Sabtu → pasar tutup",

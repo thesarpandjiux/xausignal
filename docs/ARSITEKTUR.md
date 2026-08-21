@@ -103,6 +103,28 @@ Menang di risiko 0.8 ATR bukan hal yang sama dengan menang di risiko 4 ATR.
 Tanpa aturan ini pernah muncul TP2 dan TP3 terpaut 28 sen — tiga target, dua
 di antaranya titik yang sama.
 
+### Blackout asimetris, dan kenapa bot ini tidak trading news
+
+Bot mengevaluasi candle H1 yang sudah tutup, sekali per jam. Bila NFP rilis
+19:30, bot baru melihatnya 20:05 — 35 menit setelah pergerakan. Ditambah spread
+emas yang melebar dari ~$0,20 ke $5–10 saat rilis, dan slippage yang membuat
+stop tereksekusi jauh dari tempatnya. Menghapus blackout tidak menghasilkan
+trade news; ia menghasilkan sinyal dari data basi pada spread terburuk.
+
+Namun kedua sisi jendela tidak setara:
+
+- **Sebelum rilis** arah benar-benar tidak diketahui → blokir 60 menit
+- **Sesudah rilis** arah sudah terungkap; yang tersisa hanya spread lebar,
+  yang normal kembali dalam 15–30 menit → blokir 30 menit
+
+Versi awal memblokir simetris ±60 menit, membuang jam-jam kelanjutan tren yang
+justru sering menjadi pergerakan terbaik emas.
+
+**Catatan yang belum terselesaikan:** gerbang volatilitas (`VOL_RANGE` 0,6–2,2×)
+kemungkinan masih menolak jam pertama pasca-rilis, karena ATR biasanya melonjak
+2–4× lipat. Jadi blackout yang lebih pendek belum tentu menghasilkan lebih
+banyak sinyal. Ini harus diukur dengan `learn.py walkforward`, bukan ditebak.
+
 ### Kalender gagal = blackout, bukan "aman"
 
 Saat limit unduhan terlampaui, ForexFactory membalas **halaman HTML berisi
