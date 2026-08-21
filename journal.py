@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pandas as pd
 
+import datafeed  # noqa: F401  — memuat .env
+
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 SIGNALS = BASE / "signals.csv"
 JOURNAL = BASE / "journal.csv"

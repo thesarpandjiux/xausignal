@@ -38,6 +38,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+import datafeed  # noqa: F401  — impor ini memuat .env sebelum os.getenv dipakai
+
 # ─────────────────────────────── Konfigurasi ────────────────────────────────
 
 SYMBOL = "XAU/USD"

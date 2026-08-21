@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["XAU_HOME"] = tempfile.mkdtemp()
@@ -142,6 +143,27 @@ def main():
     sig2["tp1"] = float(px["close"].iloc[10]) + 0.01
     out2, _, _, note = J.resolve(sig2, px)
     check("TP & SL bar sama → dihitung kalah", out2 == "LOSS", note or out2)
+
+    print("\nPemuat .env (bug #7)")
+    import tempfile as _tf
+    _d = _tf.mkdtemp()
+    (Path(_d) / ".env").write_text(
+        'export A_TOKEN="abc123"\n'
+        "B_ID='999'\n"
+        "C_VAL=7   # komentar\n"
+        "# baris komentar\n\n")
+    _cwd = os.getcwd()
+    os.chdir(_d)
+    for k in ("A_TOKEN", "B_ID", "C_VAL"):
+        os.environ.pop(k, None)
+    os.environ["D_EXISTING"] = "jangan_ditimpa"
+    d.load_env()
+    os.chdir(_cwd)
+    check("kutip ganda dilepas", os.environ.get("A_TOKEN") == "abc123")
+    check("kutip tunggal dilepas", os.environ.get("B_ID") == "999")
+    check("komentar di belakang dibuang", os.environ.get("C_VAL") == "7")
+    check("env yang sudah ada tidak ditimpa",
+          os.environ.get("D_EXISTING") == "jangan_ditimpa")
 
     print("\nUtilitas")
     check("Sabtu → pasar tutup",

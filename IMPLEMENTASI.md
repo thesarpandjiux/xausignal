@@ -39,16 +39,17 @@ Siapkan tiga kredensial (semuanya gratis, ±10 menit):
    otomatis pakai Dukascopy yang tidak butuh registrasi)
 
 ```bash
-cat >> ~/.bashrc <<'ENV'
-export TELEGRAM_BOT_TOKEN="..."
-export TELEGRAM_CHAT_ID="..."
-export TWELVEDATA_API_KEY="..."     # opsional
-export SIMPLE_MODE=1                # pesan ringkas
-export ACCOUNT_BALANCE=10000        # untuk saran ukuran lot
-export RISK_PCT=0.5
-ENV
-source ~/.bashrc
+cp .env.example .env
+nano .env          # isi TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID
 ```
+
+Bot membaca `.env` sendiri. **Jangan** taruh di `~/.bashrc` atau `~/.zshrc`:
+
+- macOS memakai **zsh**, jadi `~/.bashrc` tidak pernah dibaca sama sekali
+- **cron tidak membaca keduanya** — environment-nya nyaris kosong, sehingga bot
+  akan jalan mulus di terminal lalu gagal senyap saat dijadwalkan
+
+Berkas `.env` bekerja di ketiganya.
 
 ### Verifikasi
 

@@ -1,6 +1,6 @@
 # Catatan Bug
 
-Enam cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
+Tujuh cacat serius ditemukan selama pengembangan. Semuanya sudah diperbaiki.
 Dokumen ini disimpan karena polanya lebih berguna daripada daftarnya.
 
 **Tidak satu pun ketemu dengan membaca kode.** Semuanya ketemu dengan
@@ -108,9 +108,29 @@ sampai diukur.
 
 ---
 
+## 7. Kredensial tidak terbaca (zsh & cron)
+
+**Gejala** — token dimasukkan ke `~/.bashrc`, bot tetap bilang kredensial kosong.
+
+**Sebab** — dua lapis. macOS memakai **zsh**, yang tidak pernah membaca
+`~/.bashrc`. Dan bahkan bila diperbaiki ke `~/.zshrc`, **cron tidak membaca
+berkas shell mana pun** — environment cron nyaris kosong.
+
+Bug kedua lebih jahat: bot jalan sempurna saat diuji manual, lalu gagal senyap
+begitu dijadwalkan.
+
+**Perbaikan** — `datafeed.load_env()` membaca `.env` langsung dari disk saat
+impor. Bekerja di zsh, bash, dan cron. Variabel yang sudah ada di environment
+tidak ditimpa.
+
+**Pola** — asumsi tentang lingkungan pengguna yang tidak pernah diuji. Saya
+menulis `.bashrc` di dokumen tanpa mempertimbangkan pengguna memakai Mac.
+
+---
+
 ## Kesimpulan
 
-Empat dari enam bug menghasilkan sistem yang **tetap berjalan tanpa error**.
+Lima dari tujuh bug menghasilkan sistem yang **tetap berjalan tanpa error**.
 Tidak ada exception, tidak ada log merah — hanya perilaku yang salah secara
 diam-diam.
 

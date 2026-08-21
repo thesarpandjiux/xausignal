@@ -27,6 +27,43 @@ import pandas as pd
 import requests
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
+
+
+def load_env() -> None:
+    """
+    Muat variabel dari berkas .env.
+
+    Kenapa perlu: cron TIDAK membaca ~/.zshrc atau ~/.bashrc — environment-nya
+    nyaris kosong. Tanpa ini, bot jalan mulus di terminal lalu gagal senyap
+    saat dijadwalkan, dengan gejala yang membingungkan.
+
+    Urutan pencarian: ./.env → ~/.xau_signal/.env → ~/.env
+    Variabel yang SUDAH ada di environment tidak ditimpa.
+    """
+    for cand in (Path.cwd() / ".env", BASE / ".env", Path.home() / ".env"):
+        if not cand.is_file():
+            continue
+        try:
+            for line in cand.read_text().splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                line = line.removeprefix("export ").strip()
+                if "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip(), v.strip()
+                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                    v = v[1:-1]
+                v = v.split(" #")[0].strip()
+                if k and k not in os.environ:
+                    os.environ[k] = v
+        except Exception as e:
+            print(f"[warn] gagal baca {cand}: {e}", file=sys.stderr)
+        return
+
+
+load_env()
 CACHE = BASE / "cache"
 FF_URLS = ["https://nfs.faireconomy.media/ff_calendar_thisweek.json",
            "https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json"]
@@ -294,7 +331,27 @@ def send_telegram(text: str, retries: int = 3) -> bool:
 
 def selftest() -> int:
     """Cek sumber mana yang hidup. Jalankan: python datafeed.py"""
-    print("Cek sumber data XAUUSD\n" + "─" * 46)
+    print("Cek konfigurasi & sumber data XAUUSD\n" + "─" * 52)
+
+    # Kredensial dulu — ini penyebab kegagalan paling umum
+    found = None
+    for cand in (Path.cwd() / ".env", BASE / ".env", Path.home() / ".env"):
+        if cand.is_file():
+            found = cand
+            break
+    print(f"  {'📄' if found else '⚠️ '} berkas .env   "
+          f"{found if found else 'tidak ditemukan — pakai environment shell'}")
+
+    for k, wajib in (("TELEGRAM_BOT_TOKEN", True), ("TELEGRAM_CHAT_ID", True),
+                     ("TWELVEDATA_API_KEY", False), ("LLM_BASE_URL", False)):
+        v = os.getenv(k, "")
+        if v:
+            print(f"  ✅ {k:<20} {v[:8]}…{v[-4:] if len(v) > 12 else ''}")
+        else:
+            print(f"  {'❌' if wajib else '➖'} {k:<20} "
+                  f"{'BELUM DISET (wajib)' if wajib else 'kosong (opsional)'}")
+    print("─" * 52)
+
     ok = 0
     for name, fn in SOURCES:
         t0 = time.time()
@@ -305,19 +362,28 @@ def selftest() -> int:
                   f"· {time.time() - t0:.1f}s")
             ok += 1
         except Exception as e:
-            print(f"  ❌ {name:12} {str(e)[:70]}")
+            print(f"  ❌ {name:12} {str(e)[:60]}")
 
     ev, trusted = get_calendar()
     high = sum(1 for e in ev if e["impact"] == "High")
     print(f"  {'✅' if trusted else '❌'} {'kalender':12} {len(ev)} event "
           f"({high} high-impact) · terpercaya={trusted}")
 
-    tg = bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"))
-    print(f"  {'✅' if tg else '⚠️ '} {'telegram':12} "
-          f"{'kredensial ada' if tg else 'TELEGRAM_BOT_TOKEN/CHAT_ID belum diset'}")
+    # Uji kirim sungguhan — satu-satunya cara tahu Telegram benar-benar jalan
+    if os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID"):
+        sent = send_telegram("✅ <b>Uji koneksi berhasil</b>\n"
+                             "<i>XAUUSD Signal Bot siap.</i>")
+        print(f"  {'✅' if sent else '❌'} {'telegram':12} "
+              f"{'pesan uji terkirim — cek Telegram Anda' if sent else 'GAGAL kirim, lihat error di atas'}")
+    else:
+        print(f"  ❌ {'telegram':12} kredensial belum lengkap")
 
-    print("─" * 46)
+    print("─" * 52)
     print(f"{ok}/{len(SOURCES)} sumber harga hidup.")
+    if not found and not os.getenv("TELEGRAM_BOT_TOKEN"):
+        print("\n💡 Buat berkas .env di folder ini:")
+        print("   cp .env.example .env    lalu isi token Anda")
+        print("   Cara ini bekerja di zsh, bash, MAUPUN cron.")
     return 0 if ok else 1
 
 
