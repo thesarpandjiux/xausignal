@@ -263,10 +263,13 @@ def handle(update: dict) -> None:
     chat_id = str(msg.get("chat", {}).get("id", ""))
     text = (msg.get("text") or "").strip().lower().split("@")[0]
 
-    # Hanya layani chat yang dikonfigurasi. Tanpa ini, siapa pun yang
-    # menemukan nama bot bisa memicunya dan membakar kuota API Anda.
-    allowed = os.getenv("TELEGRAM_CHAT_ID", "")
-    if chat_id != allowed:
+    # Whitelist multi-chat: TELEGRAM_ALLOWED_CHATS (koma-pisah) kalau diset,
+    # fallback ke TELEGRAM_CHAT_ID tunggal untuk kompatibilitas lama.
+    # Tanpa ini bot yang ditambah ke grup akan diam — chat_id grup selalu
+    # beda dari chat pribadi, jadi whitelist 1-chat menolak semua grup.
+    allowed_raw = os.getenv("TELEGRAM_ALLOWED_CHATS", "") or os.getenv("TELEGRAM_CHAT_ID", "")
+    allowed = {c.strip() for c in allowed_raw.split(",") if c.strip()}
+    if chat_id not in allowed:
         print(f"[abaikan] chat asing {chat_id}", file=sys.stderr)
         return
 
