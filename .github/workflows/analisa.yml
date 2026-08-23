@@ -45,6 +45,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Chat yang MEMINTA /analisa (bisa grup) — Worker meneruskannya lewat
+          # client_payload. Tanpa ini hasil selalu nyasar ke TELEGRAM_CHAT_ID
+          # (chat pribadi) walau yang bertanya adalah sebuah grup.
+          REPLY_CHAT_ID: ${{ github.event.client_payload.chat_id }}
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           ACCOUNT_BALANCE: ${{ vars.ACCOUNT_BALANCE }}
           RISK_PCT: ${{ vars.RISK_PCT }}

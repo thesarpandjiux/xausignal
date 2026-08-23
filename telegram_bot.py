@@ -391,7 +391,10 @@ def run(mode: str, seconds: int = 0) -> int:
 
 def cmd_kirim_analisa() -> int:
     """Jalankan /analisa lalu kirim hasilnya. Dipicu Cloudflare Worker."""
-    chat = os.getenv("TELEGRAM_CHAT_ID")
+    # REPLY_CHAT_ID = chat yang MEMINTA (Worker meneruskan lewat
+    # client_payload, bisa grup). Fallback TELEGRAM_CHAT_ID untuk
+    # trigger manual (workflow_dispatch) yang tidak punya payload.
+    chat = os.getenv("REPLY_CHAT_ID") or os.getenv("TELEGRAM_CHAT_ID")
     if not chat:
         print("TELEGRAM_CHAT_ID belum diset", file=sys.stderr)
         return 1

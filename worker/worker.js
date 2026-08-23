@@ -16,12 +16,16 @@
  *
  * Secrets yang perlu diset (wrangler secret put NAMA):
  *   TELEGRAM_BOT_TOKEN
- *   TELEGRAM_CHAT_ID
+ *   TELEGRAM_CHAT_ID    tujuan sinyal otomatis (dan fallback whitelist)
  *   GH_TOKEN            PAT dengan scope 'repo'
  *   WEBHOOK_SECRET      string acak, diverifikasi tiap permintaan
  *
  * Variable biasa (wrangler.toml):
  *   GH_REPO             contoh: thesarpandjiux/xausignal
+ *   TELEGRAM_ALLOWED_CHATS   opsional, dipisah koma. Untuk mengizinkan
+ *                            command dari GRUP juga — chat_id grup selalu
+ *                            beda dari TELEGRAM_CHAT_ID (chat pribadi),
+ *                            jadi tanpa ini bot diam di grup manapun.
  */
 
 const RAW = (repo, file) =>
@@ -51,9 +55,15 @@ export default {
     if (!msg?.text) return new Response("ok");
 
     const chatId = String(msg.chat?.id ?? "");
-    if (chatId !== env.TELEGRAM_CHAT_ID) {
+    const allowedRaw = env.TELEGRAM_ALLOWED_CHATS || env.TELEGRAM_CHAT_ID || "";
+    const allowed = allowedRaw.split(",").map(s => s.trim()).filter(Boolean);
+    if (!allowed.includes(chatId)) {
       return new Response("ok");           // abaikan chat asing, diam-diam
     }
+
+    // Balasan (/status, /bantuan, dst) tetap dikirim ke chat yang bertanya —
+    // chatId di sini, BUKAN TELEGRAM_CHAT_ID. Kalau tidak, balasan grup akan
+    // nyasar ke chat pribadi Anda alih-alih tampil di grup yang bertanya.
 
     const cmd = msg.text.trim().toLowerCase().split(/\s+/)[0].split("@")[0];
 
@@ -113,7 +123,7 @@ async function analisa(chatId, env) {
         "Content-Type": "application/json",
         "User-Agent": "xausignal-worker",
       },
-      body: JSON.stringify({ event_type: "analisa" }),
+      body: JSON.stringify({ event_type: "analisa", client_payload: { chat_id: chatId } }),
     }
   );
 
