@@ -1,0 +1,57 @@
+name: backtest
+
+# Kalibrasi ulang harian. Hasil (calibration.json) di branch TERPISAH
+# (bot-calib), bukan bot-data — bot-data dipakai signal.yml & commands.yml
+# yang push --force di jam berbeda; menaruh data tak berhubungan di satu
+# branch adalah persis penyebab bug #15 (dua workflow saling menimpa state).
+on:
+  schedule:
+    - cron: "15 0 * * *"    # 00:15 UTC, di luar jam sibuk sinyal per-jam
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Jalankan backtest (Dukascopy, tanpa kuota)
+        env:
+          XAU_HOME: /tmp/botdata
+        run: |
+          mkdir -p /tmp/botdata
+          python xau_signal.py --backtest
+
+      - name: Simpan calibration.json ke branch bot-calib
+        env:
+          REPO_URL: https://x-access-token:*** github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          cd /tmp/botdata
+          git init -q -b bot-calib
+          git config user.name  "xausignal-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git remote add origin "$REPO_URL"
+          git add calibration.json
+          if git diff --cached --quiet; then
+            echo "tidak ada perubahan kalibrasi"
+          else
+            git commit -q -m "calibration: $(date -u '+%Y-%m-%d')"
+            git push -q origin HEAD:bot-calib --force
+            echo "calibration.json tersimpan"
+          fi

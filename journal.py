@@ -42,6 +42,11 @@ def load_signals() -> pd.DataFrame:
         print(f"Belum ada {SIGNALS}. Jalankan xau_signal.py dulu.")
         return pd.DataFrame()
     df = pd.read_csv(SIGNALS)
+    # Baris lama (sebelum kolom "source" ditambah) punya sel kosong di sana,
+    # yang dibaca pandas sebagai NaN lalu str(nan) == "nan" — terlihat seperti
+    # nama sumber data yang sah dan salah terdeteksi sebagai "sumber campuran".
+    if "source" in df.columns:
+        df["source"] = df["source"].fillna("")
     df = df[(df["direction"] != "NO-TRADE") & (df["sent"].astype(str) == "True")]
     if df.empty:
         return df

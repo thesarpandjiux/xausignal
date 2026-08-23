@@ -48,6 +48,21 @@ jobs:
             echo "belum ada state — run pertama"
           fi
 
+      - name: Ambil kalibrasi terbaru
+        # bot-calib diisi backtest.yml sekali sehari. Terpisah dari bot-data
+        # (yang di-force-push signal.yml & commands.yml di jam lain) supaya
+        # tidak saling timpa — sama seperti alasan commands.yml pakai bot-cmd.
+        env:
+          REPO_URL: https://x-access-token:*** github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          if git ls-remote --exit-code --heads "$REPO_URL" bot-calib >/dev/null 2>&1; then
+            git clone --quiet --depth=1 --branch bot-calib "$REPO_URL" /tmp/botcalib
+            cp /tmp/botcalib/calibration.json /tmp/botdata/calibration.json 2>/dev/null \
+              && echo "calibration.json dimuat" || echo "belum ada calibration.json"
+          else
+            echo "branch bot-calib belum ada — backtest belum pernah jalan"
+          fi
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -70,8 +85,12 @@ jobs:
         run: python xau_signal.py
 
       - name: Nilai hasil sinyal lama
-        # Tiap 12 jam saja; jam 6 dan 18 UTC.
-        if: ${{ github.event.schedule == '5 * * * *' }}
+        # Tiap 12 jam saja; jam 6 dan 18 UTC. Kondisi schedule sebelumnya
+        # ('5 * * * *') tidak pernah cocok dengan cron aktual di atas
+        # ("13 * * * *") — step ini TIDAK PERNAH jalan sejak awal, itu sebab
+        # journal.csv tetap kosong walau sinyal sudah terkirim. Jalankan
+        # setiap run dan biarkan pengecekan jam di dalam shell yang menyaring.
+        if: ${{ github.event_name == 'schedule' }}
         continue-on-error: true
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}

@@ -809,24 +809,60 @@ def save_state(s: dict) -> None:
     STATE_FILE.write_text(json.dumps(s, indent=2))
 
 
+# Kolom kanonik signals.csv. TAMBAH kolom baru di sini, jangan pernah lewat
+# csv.writer positional — itu penyebab bug #skema-drift: kolom "source"
+# ditambah ke data tapi header lama (16 kolom) tidak pernah dimigrasi,
+# sehingga pd.read_csv() di journal.py pecah begitu baris campur 16/17 field
+# dan journal.py gagal SENYAP (bukan "tidak ada data", tapi crash tertutup).
+SIGNAL_COLS = ["time", "id", "direction", "grade", "composite", "tech", "news",
+               "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
+               "confirms", "sent", "source"]
+
+
+def _migrate_signal_log() -> None:
+    """Perbaiki signals.csv kalau header di disk tidak cocok SIGNAL_COLS.
+
+    Baris lama diisi "" untuk kolom yang belum ada saat itu (mis. "source").
+    Dijalankan sekali di awal tiap proses, jadi schema drift di masa depan
+    juga sembuh sendiri tanpa perlu migrasi manual lagi.
+    """
+    if not LOG_FILE.exists():
+        return
+    with LOG_FILE.open(newline="") as f:
+        rows = list(csv.reader(f))
+    if not rows or rows[0] == SIGNAL_COLS:
+        return
+    fixed = [SIGNAL_COLS]
+    for r in rows[1:]:
+        if r == SIGNAL_COLS:      # baris header duplikat dari migrasi lama
+            continue
+        r = (r + [""] * len(SIGNAL_COLS))[:len(SIGNAL_COLS)]
+        fixed.append(r)
+    with LOG_FILE.open("w", newline="") as f:
+        csv.writer(f).writerows(fixed)
+    print(f"[info] signals.csv dimigrasi ke skema {len(SIGNAL_COLS)} kolom "
+          f"({len(fixed) - 1} baris)", file=sys.stderr)
+
+
 def log_signal(sig: Signal, sent: bool) -> None:
     """Catat tiap evaluasi. Ini bahan baku kalibrasi ulang nanti."""
     BASE.mkdir(parents=True, exist_ok=True)
+    _migrate_signal_log()
     new = not LOG_FILE.exists()
     tps = (sig.targets + [None, None, None])[:3]
+    row = dict(zip(SIGNAL_COLS, [
+        sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
+        round(sig.composite, 1), round(sig.tech_score, 1),
+        round(sig.news_score, 1), round(sig.price, 2), round(sig.entry, 2),
+        round(sig.stop_loss, 2),
+        *[round(t, 2) if t is not None else "" for t in tps],
+        round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
+        sig.data_source.split(" (")[0]]))
     with LOG_FILE.open("a", newline="") as f:
-        w = csv.writer(f)
+        w = csv.DictWriter(f, fieldnames=SIGNAL_COLS)
         if new:
-            w.writerow(["time", "id", "direction", "grade", "composite", "tech", "news",
-                        "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
-                        "confirms", "sent", "source"])
-        w.writerow([sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
-                    round(sig.composite, 1), round(sig.tech_score, 1),
-                    round(sig.news_score, 1), round(sig.price, 2), round(sig.entry, 2),
-                    round(sig.stop_loss, 2),
-                    *[round(t, 2) if t is not None else "" for t in tps],
-                    round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
-                    sig.data_source.split(" (")[0]])
+            w.writeheader()
+        w.writerow(row)
 
 
 def should_send(sig: Signal, state: dict, now: datetime):
