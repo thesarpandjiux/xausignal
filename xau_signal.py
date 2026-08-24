@@ -53,7 +53,7 @@ SL_BUFFER_ATR = 0.3          # jarak aman di balik swing level
 SL_MIN_ATR = 1.0             # SL tidak boleh lebih sempit dari noise sejam
 SL_MAX_ATR = 2.5             # dan tidak boleh melebar sampai R tak sebanding
 TP_MIN_GAP_R = 0.5           # jarak minimum antar target (dalam satuan R)
-MIN_RR = 2.0                 # R:R minimum ke target struktur pertama
+MIN_RR = 1.5                 # R:R minimum ke target struktur pertama
 MAX_EXTENSION_ATR = 2.5      # jangan kejar harga yang sudah jauh dari EMA20
 VOL_RANGE = (0.6, 2.2)       # regime ATR yang dianggap layak ditradingkan
 MIN_CONFIRMS = 3             # dari 5 syarat konfirmasi
@@ -366,7 +366,7 @@ def structure_levels(direction: str, entry: pd.DataFrame, px: float, a: float):
         if len(tps) == 3:
             break
 
-    for rr in (2.0, 3.0, 4.0, 5.0, 6.0):       # lengkapi dengan kelipatan R, mulai >= MIN_RR
+    for rr in (1.5, 2.5, 3.5, 4.5, 5.5):       # lengkapi dengan kelipatan R, mulai >= MIN_RR
         if len(tps) >= 3:
             break
         cand = px + sign * rr * risk
