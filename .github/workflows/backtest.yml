@@ -40,7 +40,7 @@ jobs:
 
       - name: Simpan calibration.json ke branch bot-calib
         env:
-          REPO_URL: https://x-access-token:*** github.token }}@github.com/${{ github.repository }}.git
+          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
         run: |
           cd /tmp/botdata
           git init -q -b bot-calib
