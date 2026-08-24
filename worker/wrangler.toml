@@ -3,8 +3,12 @@ main = "worker.js"
 compatibility_date = "2026-01-01"
 
 [vars]
-# Ganti dengan repo Anda
-GH_REPO = "USERNAME/xausignal"
+GH_REPO = "thesarpandjiux/xausignal"
+
+# Izinkan command dari grup juga — chat_id grup selalu beda dari
+# TELEGRAM_CHAT_ID (chat pribadi, dipakai juga sbg tujuan sinyal otomatis).
+# Tanpa ini bot diam di grup. Dipisah koma untuk >1 chat/grup.
+TELEGRAM_ALLOWED_CHATS = "1333468305,-1004450731743"
 
 # Secrets diset lewat perintah, JANGAN ditulis di sini:
 #   wrangler secret put TELEGRAM_BOT_TOKEN
