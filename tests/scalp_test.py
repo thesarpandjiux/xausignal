@@ -83,6 +83,27 @@ def test_order_block_positive_and_negative():
     ok("Order Block: positif (di zona) dan negatif (jauh dari zona) benar")
 
 
+def test_backtest_returns_calibration_buckets():
+    rng = np.random.default_rng(123)
+
+    def make_df(n, freq, base=4600, trend_per_bar=0.1, noise=0.4):
+        idx = pd.date_range("2026-01-01", periods=n, freq=freq, tz="utc")
+        close = base + np.arange(n) * trend_per_bar + rng.normal(0, noise, n)
+        high = close + 1
+        low = close - 1
+        open_ = np.concatenate([[close[0]], close[:-1]])
+        return pd.DataFrame({"open": open_, "high": high, "low": low, "close": close}, index=idx)
+
+    h1 = make_df(120, "1h", trend_per_bar=1.0, noise=0.2)
+    m15 = make_df(480, "15min", trend_per_bar=0.25, noise=0.2)
+    m5 = make_df(1440, "5min", trend_per_bar=0.08, noise=0.2)
+    calib = sc.run_backtest(h1, m15, m5, horizon=6)
+    assert "_meta" in calib
+    assert calib["_meta"]["horizon_bars"] == 6
+    assert calib["_meta"]["total_signals"] >= 0
+    ok("backtest scalp menghasilkan metadata kalibrasi")
+
+
 def test_no_trigger_when_trend_choppy():
     idx = pd.date_range("2026-01-01", periods=100, freq="1h", tz="utc")
     # Harga BENAR-BENAR konstan -> EMA20 == EMA50 == harga terus, deterministik
@@ -101,6 +122,7 @@ if __name__ == "__main__":
     test_trend_and_full_pipeline()
     test_fvg_bullish()
     test_order_block_positive_and_negative()
+    test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
     print("\n" + "─" * 50)
     print("✅ Semua uji lolos.")

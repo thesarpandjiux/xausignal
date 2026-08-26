@@ -63,6 +63,7 @@ MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
+CALIB_FILE = BASE / "scalp_calibration.json"
 
 
 @dataclass
@@ -220,6 +221,60 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                        data_source=data_source)
 
 
+# ─────────────────────────────── Backtest ───────────────────────────────────
+
+def run_backtest(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
+                 horizon: int = 12) -> dict:
+    """Walk-forward M5. Tiap bar M5 jadi kandidat entry; cek TP1/SL mana
+    kena duluan dalam `horizon` bar berikutnya. Same-bar TP+SL dihitung LOSS
+    (konservatif, sama filosofi journal.py)."""
+    rows = []
+    for i in range(120, len(m5) - horizon):
+        ts = m5.index[i]
+        h1s = h1[h1.index <= ts]
+        m15s = m15[m15.index <= ts]
+        if len(h1s) < 60 or len(m15s) < 60:
+            continue
+        sig = build_scalp_signal(h1s, m15s, m5.iloc[:i + 1], ts.to_pydatetime(),
+                                 data_source="backtest")
+        if sig.direction == "NO-TRADE":
+            continue
+
+        tp1, sl = sig.targets[0], sig.stop_loss
+        won = None
+        for _, bar in m5.iloc[i + 1:i + 1 + horizon].iterrows():
+            if sig.direction == "BUY":
+                if bar["low"] <= sl:
+                    won = False; break
+                if bar["high"] >= tp1:
+                    won = True; break
+            else:
+                if bar["high"] >= sl:
+                    won = False; break
+                if bar["low"] <= tp1:
+                    won = True; break
+        if won is None:
+            continue
+        rows.append({"grade": sig.grade, "n": sig.n_triggers, "won": won})
+
+    df = pd.DataFrame(rows)
+    calib = {"_meta": {"generated": datetime.now(timezone.utc).isoformat(),
+                        "total_signals": len(df), "horizon_bars": horizon,
+                        "horizon_minutes": horizon * 5,
+                        "overall_win_rate": None}}
+    if df.empty:
+        return calib
+
+    calib["_meta"]["overall_win_rate"] = round(df["won"].mean() * 100, 1)
+    for g, gdf in df.groupby("grade"):
+        calib[f"{g}:*"] = {"n": len(gdf),
+                           "win_rate": round(gdf["won"].mean() * 100, 1)}
+    for n, ndf in df.groupby("n"):
+        calib[f"{int(n)}/5"] = {"n": len(ndf),
+                                "win_rate": round(ndf["won"].mean() * 100, 1)}
+    return calib
+
+
 # ─────────────────────────────── Pesan Telegram ──────────────────────────────
 
 def format_message(sig: ScalpSignal) -> str:
@@ -280,16 +335,31 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--backtest", action="store_true", help="bangun scalp_calibration.json")
     args = ap.parse_args()
 
     now = datetime.now(timezone.utc)
+    prefer = "dukascopy" if args.backtest else None
+    h1, _ = xs.get_ohlc(TF_TREND, prefer=prefer)
+    m15, _ = xs.get_ohlc(TF_MOMENTUM, prefer=prefer)
+    m5, src = xs.get_ohlc(TF_ENTRY, prefer=prefer)
+
+    if args.backtest:
+        print("Menjalankan backtest scalp…")
+        calib = run_backtest(h1, m15, m5)
+        BASE.mkdir(parents=True, exist_ok=True)
+        CALIB_FILE.write_text(json.dumps(calib, indent=2))
+        meta = calib["_meta"]
+        print(f"{meta['total_signals']} sinyal · win rate keseluruhan {meta['overall_win_rate']}%")
+        for k in sorted(k for k in calib if k != "_meta"):
+            print(f"  {k}: {calib[k]['win_rate']}% (n={calib[k]['n']})")
+        print(f"Tersimpan di {CALIB_FILE}")
+        print("Catatan: ini in-sample; pakai sebagai kalibrasi awal, bukan jaminan.")
+        return 0
+
     if not args.force and not xs.market_open(now):
         print("Pasar tutup.")
         return 0
-
-    h1, _ = xs.get_ohlc(TF_TREND)
-    m15, _ = xs.get_ohlc(TF_MOMENTUM)
-    m5, src = xs.get_ohlc(TF_ENTRY)
 
     sig = build_scalp_signal(h1, m15, m5, now, data_source=src)
     msg = format_message(sig)

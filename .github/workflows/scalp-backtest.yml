@@ -1,0 +1,52 @@
+name: scalp-backtest
+
+# Backtest otomatis untuk mode SCALP. Pakai Dukascopy karena gratis, no-key,
+# dan dari GitHub Actions sudah terverifikasi jalan: M5 180d + M15 365d OK.
+on:
+  schedule:
+    - cron: "25 0 * * *"   # setelah backtest swing (00:15 UTC), beda menit
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scalp-backtest
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Jalankan backtest scalp (Dukascopy)
+        env:
+          XAU_HOME: /tmp/botscalpcalib
+        run: |
+          mkdir -p /tmp/botscalpcalib
+          python xau_scalp.py --backtest
+
+      - name: Simpan scalp_calibration.json ke branch bot-scalp-calib
+        env:
+          REPO_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+        run: |
+          cd /tmp/botscalpcalib
+          git init -q -b bot-scalp-calib
+          git config user.name  "xausignal-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git remote add origin "$REPO_URL"
+          git add scalp_calibration.json
+          if git diff --cached --quiet; then
+            echo "tidak ada perubahan kalibrasi scalp"
+          else
+            git commit -q -m "scalp calibration: $(date -u '+%Y-%m-%d')"
+            git push -q origin HEAD:bot-scalp-calib --force
+            echo "scalp_calibration.json tersimpan"
+          fi
