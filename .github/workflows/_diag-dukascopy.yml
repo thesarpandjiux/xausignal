@@ -1,0 +1,44 @@
+name: _diag-dukascopy
+
+# Diagnostik sementara — cek apakah Dukascopy M5/M15 bisa diakses dari
+# runner GitHub Actions (network beda dari sandbox lokal). Dihapus setelah
+# hasilnya diketahui, bukan workflow permanen.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Cek kedalaman histori Dukascopy M5/M15
+        run: |
+          python3 - <<'PYEOF'
+          import warnings; warnings.filterwarnings('ignore')
+          from datetime import datetime, timedelta, timezone
+          import dukascopy_python
+          from dukascopy_python.instruments import INSTRUMENT_FX_METALS_XAU_USD
+
+          for label, iv, days in (
+              ("M5", dukascopy_python.INTERVAL_MIN_5, 180),
+              ("M15", dukascopy_python.INTERVAL_MIN_15, 365),
+          ):
+              try:
+                  end = datetime.now(timezone.utc)
+                  start = end - timedelta(days=days)
+                  df = dukascopy_python.fetch(
+                      INSTRUMENT_FX_METALS_XAU_USD, iv,
+                      dukascopy_python.OFFER_SIDE_BID, start, end)
+                  if df is None or df.empty:
+                      print(f"{label} {days}d: KOSONG")
+                  else:
+                      print(f"{label} {days}d: OK rows={len(df)} "
+                            f"from={df.index[0]} to={df.index[-1]}")
+              except Exception as e:
+                  print(f"{label} {days}d: FAIL {e}")
+          PYEOF
