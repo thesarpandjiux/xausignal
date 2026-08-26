@@ -79,7 +79,9 @@ FF_URLS = ["https://nfs.faireconomy.media/ff_calendar_thisweek.json",
            "https://cdn-nfs.faireconomy.media/ff_calendar_thisweek.json"]
 
 # TTL cache per interval (detik). Bar H1 baru tiap jam, tidak perlu ditarik tiap menit.
-OHLC_TTL = {"1h": 900, "4h": 3600, "1d": 21600}
+# M5/M15 dipakai mode scalp: TTL harus lebih pendek dari periode bar itu sendiri,
+# kalau tidak entry M5 dinilai dari bar basi dan sinyal telat satu-dua bar.
+OHLC_TTL = {"5m": 120, "15m": 420, "1h": 900, "4h": 3600, "1d": 21600}
 CALENDAR_TTL = 6 * 3600          # 6 jam — jauh di bawah limit 2 per 5 menit
 OHLC_COLS = ["open", "high", "low", "close"]
 
@@ -180,10 +182,12 @@ def from_dukascopy(interval: str, bars: int) -> pd.DataFrame:
     import dukascopy_python
     from dukascopy_python.instruments import INSTRUMENT_FX_METALS_XAU_USD
 
-    iv = {"1h": dukascopy_python.INTERVAL_HOUR_1,
+    iv = {"5m": dukascopy_python.INTERVAL_MIN_5,
+          "15m": dukascopy_python.INTERVAL_MIN_15,
+          "1h": dukascopy_python.INTERVAL_HOUR_1,
           "4h": dukascopy_python.INTERVAL_HOUR_4,
           "1d": dukascopy_python.INTERVAL_DAY_1}[interval]
-    hours = {"1h": 1, "4h": 4, "1d": 24}[interval]
+    hours = {"5m": 1 / 12, "15m": 0.25, "1h": 1, "4h": 4, "1d": 24}[interval]
     # dilebihkan 2.2× karena akhir pekan tidak ada bar
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours * bars * 2.2)
@@ -198,7 +202,9 @@ def from_dukascopy(interval: str, bars: int) -> pd.DataFrame:
 def from_yfinance(interval: str, bars: int) -> pd.DataFrame:
     """Cadangan terakhir. Endpoint tidak resmi, rawan HTTP 429."""
     import yfinance as yf
-    period = {"1h": "60d", "4h": "180d", "1d": "3y"}[interval]
+    # yfinance batasi histori intraday granular jauh lebih pendek (~60 hari
+    # utk <1h). Cukup utk mode scalp (butuh ratusan bar M5/M15 terakhir saja).
+    period = {"5m": "60d", "15m": "60d", "1h": "60d", "4h": "180d", "1d": "3y"}[interval]
     df = yf.Ticker("GC=F").history(period=period,
                                    interval="1h" if interval == "4h" else interval)
     if df.empty:
