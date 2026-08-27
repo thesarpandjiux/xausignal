@@ -875,6 +875,12 @@ def should_send(sig: Signal, state: dict, now: datetime):
         return False, "tidak ada setup yang lolos gating"
     if sig.blackout:
         return False, f"blackout: {sig.blackout[:60]}"
+    # Gate kalibrasi: tolak bucket grade/skor yang riwayatnya menang <50%.
+    # confidence None berarti sampel <20 (lookup_confidence) — belum cukup
+    # data untuk digating, biarkan skor teknikal saja yang bicara.
+    if sig.confidence is not None and sig.confidence < 50:
+        return False, (f"win rate historis {sig.confidence:.0f}% "
+                        f"(n={sig.confidence_n}) di bawah ambang 50%")
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])
