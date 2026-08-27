@@ -145,6 +145,10 @@ def cmd_analisa() -> str:
 
     sig = x.build_signal(bias, entry, macro, events, now, x.load_calibration(),
                          calendar_trusted=cal_ok, data_source=src)
+    # sent=True (bukan False): hasil BUY/SELL memang dibalas ke user di sini,
+    # dan journal.py cuma menilai baris sent==True. sent=False akan membuat
+    # analisa manual tidak pernah dinilai — kebalikan dari tujuannya.
+    x.log_signal(sig, sent=(sig.direction != "NO-TRADE"), trigger="manual")
     teks = _format_analisa(sig, now, src)
 
     save_tg_state({**st, "waktu": now.isoformat(),

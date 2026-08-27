@@ -821,7 +821,7 @@ def save_state(s: dict) -> None:
 # dan journal.py gagal SENYAP (bukan "tidak ada data", tapi crash tertutup).
 SIGNAL_COLS = ["time", "id", "direction", "grade", "composite", "tech", "news",
                "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
-               "confirms", "sent", "source"]
+               "confirms", "sent", "source", "trigger"]
 
 
 def _migrate_signal_log() -> None:
@@ -849,11 +849,26 @@ def _migrate_signal_log() -> None:
           f"({len(fixed) - 1} baris)", file=sys.stderr)
 
 
-def log_signal(sig: Signal, sent: bool) -> None:
-    """Catat tiap evaluasi. Ini bahan baku kalibrasi ulang nanti."""
+def log_signal(sig: Signal, sent: bool, trigger: str = "auto") -> None:
+    """Catat tiap evaluasi. Ini bahan baku kalibrasi ulang nanti.
+
+    trigger: "auto" (cron terjadwal) atau "manual" (/analisa via Telegram).
+    Dipisah supaya journal bisa membedakan performa jalur otomatis vs
+    keputusan yang dipicu manusia lewat command — tanpa ini /analisa
+    tidak pernah tercatat sama sekali dan tidak pernah dinilai journal.py.
+
+    Dedup by id: /analisa dan cron membaca candle H1 yang sama, jadi kalau
+    keduanya menghasilkan sinyal terarah, signal_id() identik. Tanpa dedup,
+    sinyal yang sama tercatat dua kali dan journal menghitungnya dobel.
+    """
     BASE.mkdir(parents=True, exist_ok=True)
     _migrate_signal_log()
     new = not LOG_FILE.exists()
+    if not new:
+        with LOG_FILE.open(newline="") as f:
+            existing_ids = {r["id"] for r in csv.DictReader(f)}
+        if sig.signal_id() in existing_ids:
+            return
     tps = (sig.targets + [None, None, None])[:3]
     row = dict(zip(SIGNAL_COLS, [
         sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
@@ -862,7 +877,7 @@ def log_signal(sig: Signal, sent: bool) -> None:
         round(sig.stop_loss, 2),
         *[round(t, 2) if t is not None else "" for t in tps],
         round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
-        sig.data_source.split(" (")[0]]))
+        sig.data_source.split(" (")[0], trigger]))
     with LOG_FILE.open("a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=SIGNAL_COLS)
         if new:
@@ -979,7 +994,7 @@ def main() -> int:
     else:
         print(f"Dilewati: {reason} (skor {sig.composite:+.1f})")
 
-    log_signal(sig, sent)
+    log_signal(sig, sent, trigger="auto")
     return 0
 
 
