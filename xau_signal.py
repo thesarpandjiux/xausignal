@@ -61,7 +61,10 @@ MIN_CONFIRMS = 3             # dari 5 syarat konfirmasi
 
 # Override bobot komponen — dipakai learn.py untuk uji ablasi.
 # Kosongkan untuk memakai bobot bawaan. Contoh: {"RSI H1": 0.0}
-WEIGHT_OVERRIDE: dict = {}
+# RSI H1 dimatikan permanen: ablation + walkforward (5000 bar, 6 periode)
+# menunjukkan RSI menurunkan ekspektasi (-0.05R → +0.13R) dan menggandakan
+# simpangan (0.26 → 0.13). Bukti: /tmp/wf_norsi.py
+WEIGHT_OVERRIDE: dict = {"RSI H1": 0.0}
 
 # Blackout ASIMETRIS. Kedua sisi tidak setara:
 #   sebelum rilis → arah benar-benar tidak diketahui, wajib diblokir
