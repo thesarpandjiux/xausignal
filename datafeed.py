@@ -353,32 +353,49 @@ def get_calendar(use_cache: bool = True) -> tuple[list[dict], bool]:
 # ─────────────────────────────── Telegram ───────────────────────────────────
 
 def send_telegram(text: str, retries: int = 3) -> bool:
-    """Gratis tanpa batas praktis. Retry karena jaringan rumahan sering putus."""
-    tok, chat = os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
-    if not tok or not chat:
+    """Gratis tanpa batas praktis. Retry karena jaringan rumahan sering putus.
+
+    Kirim ke SEMUA chat target: TELEGRAM_CHAT_ID (pribadi) + TELEGRAM_GROUP_ID
+    (grup, opsional). Tanpa ini sinyal otomatis hanya sampai ke pemilik, grup
+    tidak pernah menerima apa pun.
+    """
+    chats = [c for c in (os.getenv("TELEGRAM_CHAT_ID", ""),
+                         os.getenv("TELEGRAM_GROUP_ID", "")) if c]
+    if not chats:
         print("[warn] kredensial Telegram kosong", file=sys.stderr)
         return False
+    tok = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not tok:
+        print("[warn] TELEGRAM_BOT_TOKEN kosong", file=sys.stderr)
+        return False
 
-    for attempt in range(retries):
-        try:
-            r = requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
-                              json={"chat_id": chat, "text": text[:4096],
-                                    "parse_mode": "HTML",
-                                    "disable_web_page_preview": True},
-                              timeout=20)
-            if r.ok:
-                return True
-            if r.status_code == 429:      # Telegram menyuruh menunggu
-                wait = r.json().get("parameters", {}).get("retry_after", 5)
-                time.sleep(min(wait, 30))
-                continue
-            print(f"[error] Telegram {r.status_code}: {r.text[:200]}",
-                  file=sys.stderr)
-            return False
-        except requests.RequestException as e:
-            print(f"[warn] Telegram percobaan {attempt + 1}: {e}", file=sys.stderr)
-            time.sleep(2 ** attempt)
-    return False
+    all_ok = True
+    for chat in chats:
+        sent = False
+        for attempt in range(retries):
+            try:
+                r = requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                                  json={"chat_id": chat, "text": text[:4096],
+                                        "parse_mode": "HTML",
+                                        "disable_web_page_preview": True},
+                                  timeout=20)
+                if r.ok:
+                    sent = True
+                    break
+                if r.status_code == 429:      # Telegram menyuruh menunggu
+                    wait = r.json().get("parameters", {}).get("retry_after", 5)
+                    time.sleep(min(wait, 30))
+                    continue
+                print(f"[error] Telegram {r.status_code} ke {chat}: {r.text[:200]}",
+                      file=sys.stderr)
+                break
+            except requests.RequestException as e:
+                print(f"[warn] Telegram percobaan {attempt + 1} ke {chat}: {e}",
+                      file=sys.stderr)
+                time.sleep(2 ** attempt)
+        if not sent:
+            all_ok = False
+    return all_ok
 
 
 # ─────────────────────────────── Diagnostik ─────────────────────────────────
