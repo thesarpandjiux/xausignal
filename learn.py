@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import math
 import sys
+import json
 from datetime import datetime, timezone
 
 import numpy as np
@@ -327,13 +328,57 @@ def cmd_calibration(demo=False):
     return 0
 
 
+# ─────────────────────── 5. Build calibration.json ──────────────────────────
+
+def cmd_build_calib(demo=False):
+    """
+    Bangun calibration.json dari histori panjang (5000 bar H1, sama seperti
+    walkforward/calibration), BUKAN dari xau_signal.py --backtest yang cuma
+    fetch 400 bar (~2-3 minggu, terlalu dangkal untuk bucket >=20 sampel).
+
+    Pakai run_trades() yang sama supaya angka konsisten dengan yang sudah
+    divalidasi lewat 'learn.py calibration' -- bukan sumber terpisah yang
+    bisa berbeda metodologi diam-diam.
+    """
+    print("\nBUILD CALIBRATION.JSON — dari histori panjang, bukan 400-bar")
+    print("=" * 62)
+    h1, h4, d1 = load_data(demo)
+    df = run_trades(h1, h4, d1, step=1)
+    if df.empty:
+        print("Tidak ada sinyal terpicu.")
+        return 1
+
+    calib = {}
+    for g, gdf in df.groupby("grade"):
+        calib[f"{g}:*"] = {"n": len(gdf), "win_rate": round(gdf["won"].mean() * 100, 1),
+                           "exp_r": round(gdf["r"].mean(), 3)}
+        for bkt, bdf in gdf.assign(bucket=(gdf["composite"].abs() // 10 * 10).astype(int)).groupby("bucket"):
+            calib[f"{g}:{bkt}"] = {"n": len(bdf), "win_rate": round(bdf["won"].mean() * 100, 1),
+                                   "exp_r": round(bdf["r"].mean(), 3)}
+    calib["_meta"] = {"generated": datetime.now(timezone.utc).isoformat(),
+                      "total_signals": len(df), "horizon_bars": HORIZON,
+                      "overall_win_rate": round(df["won"].mean() * 100, 1),
+                      "overall_exp_r": round(df["r"].mean(), 3)}
+
+    x.BASE.mkdir(parents=True, exist_ok=True)
+    x.CALIB_FILE.write_text(json.dumps(calib, indent=2))
+    print(f"{len(df)} sinyal · win rate {calib['_meta']['overall_win_rate']}% "
+          f"· ekspektasi {calib['_meta']['overall_exp_r']:+.2f}R")
+    for k in sorted(k for k in calib if k.endswith(":*")):
+        print(f"  Grade {k[0]}: n={calib[k]['n']} win={calib[k]['win_rate']}% "
+              f"exp={calib[k]['exp_r']:+.2f}R")
+    print(f"\nTersimpan di {x.CALIB_FILE}")
+    return 0
+
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "power"
     demo = "--demo" in sys.argv
     fn = {"power": lambda: cmd_power(),
           "walkforward": lambda: cmd_walkforward(demo),
           "ablation": lambda: cmd_ablation(demo),
-          "calibration": lambda: cmd_calibration(demo)}.get(cmd)
+          "calibration": lambda: cmd_calibration(demo),
+          "build-calib": lambda: cmd_build_calib(demo)}.get(cmd)
     if not fn:
         print(__doc__)
         return 1
