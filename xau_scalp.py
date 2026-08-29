@@ -29,10 +29,10 @@ lebih tinggi karena belum ada konfirmasi candle close.
     4. Fair Value Gap M15   — harga masuk ke gap 3-candle yang belum terisi
     5. Liquidity sweep M5   — wick menembus swing high/low lalu close balik
 
-Ambang kirim (bukan gate veto, tapi threshold kualitas — sesuai "kirim yang
-berkualitas saja"): minimal 3/5 trigger DAN wajib termasuk Trend H1 + minimal
-1 dari (OB/FVG/liquidity) — biar bukan cuma "kebetulan momentum" tanpa
-struktur harga yang jelas.
+Ambang kirim (bukan gate veto, tapi threshold kualitas): minimal 2/5 trigger
+DAN wajib termasuk Trend H1 — biar bukan cuma "kebetulan momentum" tanpa arah
+yang jelas. OB/FVG/liquidity tidak wajib (longgar, sesuai permintaan user:
+"sinyal scalp harus lebih sering terkirim"). Grade: A=5/5, B=4/5, C=3/5, D=2/5.
 
 ENV: sama seperti xau_signal.py (TELEGRAM_BOT_TOKEN/CHAT_ID, TWELVEDATA_API_KEY dst)
 """
@@ -56,7 +56,7 @@ import xau_signal as xs   # reuse indikator & util, jangan duplikasi
 TF_TREND, TF_MOMENTUM, TF_ENTRY = "1h", "15m", "5m"
 BARS = 300
 
-MIN_TRIGGERS = 3          # dari 5 — ambang kirim "kualitas minimum"
+MIN_TRIGGERS = 2          # dari 5 — longgar: cukup 2/5 trigger (Trend H1 wajib)
 ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
                            # scalp menahan posisi jauh lebih singkat
 MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
@@ -199,12 +199,12 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
         liquidity_sweep(m5, direction),
     ]
     n = sum(1 for t in triggers if t.passed)
-    struct_ok = any(t.passed for t in triggers[2:])   # OB / FVG / liquidity
-
-    grade = {5: "A", 4: "B", 3: "C"}.get(n, "-")
+    # Trend H1 wajib (arah jelas), OB/FVG/liquidity TIDAK wajib lagi —
+    # cukup 2/5 total. Ini yang bikin sinyal lebih sering (permintaan user).
+    grade = {5: "A", 4: "B", 3: "C", 2: "D"}.get(n, "-")
     dirn = "BUY" if direction > 0 else "SELL"
 
-    eligible = n >= MIN_TRIGGERS and trend_trig.passed and struct_ok
+    eligible = n >= MIN_TRIGGERS and trend_trig.passed
     if not eligible:
         return ScalpSignal(time=now, direction="NO-TRADE", grade=grade,
                            n_triggers=n, triggers=triggers,
