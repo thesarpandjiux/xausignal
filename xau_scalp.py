@@ -255,7 +255,8 @@ def run_backtest(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                     won = True; break
         if won is None:
             continue
-        rows.append({"grade": sig.grade, "n": sig.n_triggers, "won": won})
+        rows.append({"grade": sig.grade, "n": sig.n_triggers, "won": won,
+                     "r": MIN_RR if won else -1.0})
 
     df = pd.DataFrame(rows)
     calib = {"_meta": {"generated": datetime.now(timezone.utc).isoformat(),
@@ -266,12 +267,15 @@ def run_backtest(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
         return calib
 
     calib["_meta"]["overall_win_rate"] = round(df["won"].mean() * 100, 1)
+    calib["_meta"]["overall_exp_r"] = round(df["r"].mean(), 3)
     for g, gdf in df.groupby("grade"):
         calib[f"{g}:*"] = {"n": len(gdf),
-                           "win_rate": round(gdf["won"].mean() * 100, 1)}
+                           "win_rate": round(gdf["won"].mean() * 100, 1),
+                           "exp_r": round(gdf["r"].mean(), 3)}
     for n, ndf in df.groupby("n"):
         calib[f"{int(n)}/5"] = {"n": len(ndf),
-                                "win_rate": round(ndf["won"].mean() * 100, 1)}
+                                "win_rate": round(ndf["won"].mean() * 100, 1),
+                                "exp_r": round(ndf["r"].mean(), 3)}
     return calib
 
 
