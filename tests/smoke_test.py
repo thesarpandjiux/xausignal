@@ -114,10 +114,11 @@ def main():
 
     print("\nKalibrasi (bug: angka karangan)")
     check("sampel <20 → tanpa angka",
-          x.lookup_confidence({"A:*": {"n": 5, "win_rate": 100}}, "A", 50) == (None, 0))
-    c, cn = x.lookup_confidence({"A:*": {"n": 90, "win_rate": 61.0}}, "A", 50)
-    check("sampel cukup → angka muncul", c == 61.0 and cn == 90)
-    check("tabel kosong → tanpa angka", x.lookup_confidence({}, "B", 50) == (None, 0))
+          x.lookup_confidence({"A:*": {"n": 5, "win_rate": 100}}, "A", 50) == (None, 0, None))
+    c, cn, er = x.lookup_confidence(
+        {"A:*": {"n": 90, "win_rate": 61.0, "exp_r": 0.3}}, "A", 50)
+    check("sampel cukup → angka muncul", c == 61.0 and cn == 90 and er == 0.3)
+    check("tabel kosong → tanpa angka", x.lookup_confidence({}, "B", 50) == (None, 0, None))
 
     print("\nGrade (bug #3)")
     grades = set()
