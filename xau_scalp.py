@@ -12,7 +12,7 @@ Filosofi beda dari xau_signal.py (mode "swing"):
 
 Timeframe hierarki (beda dari mode swing yang D1→H4→H1):
     H1  : arah tren
-    M15 : momentum + order block + fair value gap
+    M15 : momentum (RSI + MACD)
     M5  : liquidity sweep + titik entry presisi
 
 Filosofi timing: fire begitu harga MENYENTUH zona + liquidity sweep
@@ -21,18 +21,15 @@ Ini "potensi reaction", bukan "after reaction" (sesuai permintaan user).
 Trade-off: entry lebih awal/dekat ke titik optimal, tapi risiko whipsaw
 lebih tinggi karena belum ada konfirmasi candle close.
 
-5 trigger (tiap lolos = +1, skor = n_lolos/5 × 100%):
+3 trigger (tiap lolos = +1, skor = n_lolos/3 × 100%):
     1. Trend H1 searah      — EMA20 > EMA50 H1 + slope searah
     2. Momentum M15 searah  — RSI + MACD histogram searah tren H1
-    3. Order Block M15      — harga kembali ke candle terakhir sebelum
-                              pergerakan impulsif berlawanan
-    4. Fair Value Gap M15   — harga masuk ke gap 3-candle yang belum terisi
-    5. Liquidity sweep M5   — wick menembus swing high/low lalu close balik
+    3. Liquidity sweep M5   — wick menembus swing high/low lalu close balik
+    (Order Block & FVG M15 dihapus — ablation: nol efek / merugikan)
 
-Ambang kirim (bukan gate veto, tapi threshold kualitas): minimal 2/5 trigger
+Ambang kirim (bukan gate veto, tapi threshold kualitas): minimal 2/3 trigger
 DAN wajib termasuk Trend H1 — biar bukan cuma "kebetulan momentum" tanpa arah
-yang jelas. OB/FVG/liquidity tidak wajib (longgar, sesuai permintaan user:
-"sinyal scalp harus lebih sering terkirim"). Grade: A=5/5, B=4/5, C=3/5, D=2/5.
+yang jelas. Grade: A=3/3, B=2/3. C (1/3) tidak dikirim.
 
 ENV: sama seperti xau_signal.py (TELEGRAM_BOT_TOKEN/CHAT_ID, TWELVEDATA_API_KEY dst)
 """
@@ -56,7 +53,7 @@ import xau_signal as xs   # reuse indikator & util, jangan duplikasi
 TF_TREND, TF_MOMENTUM, TF_ENTRY = "1h", "15m", "5m"
 BARS = 300
 
-MIN_TRIGGERS = 2          # dari 5 — longgar: cukup 2/5 trigger (Trend H1 wajib)
+MIN_TRIGGERS = 2          # dari 3 — cukup 2/3 trigger (Trend H1 wajib)
 ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
                            # scalp menahan posisi jauh lebih singkat
 MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
@@ -77,7 +74,7 @@ class Trigger:
 class ScalpSignal:
     time: datetime
     direction: str          # BUY / SELL / NO-TRADE
-    grade: str               # A (5/5), B (4/5), C (3/5), "-" (<3/5, tidak dikirim)
+    grade: str               # A (3/3), B (2/3), "-" (<2/3, tidak dikirim)
     n_triggers: int
     triggers: list[Trigger] = field(default_factory=list)
     price: float = 0.0
@@ -194,14 +191,14 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
     triggers = [
         trend_trig,
         momentum_m15(m15, direction),
-        order_block(m15, direction, float(xs.atr(m15).iloc[-1])),
-        fair_value_gap(m15, direction),
         liquidity_sweep(m5, direction),
     ]
     n = sum(1 for t in triggers if t.passed)
-    # Trend H1 wajib (arah jelas), OB/FVG/liquidity TIDAK wajib lagi —
-    # cukup 2/5 total. Ini yang bikin sinyal lebih sering (permintaan user).
-    grade = {5: "A", 4: "B", 3: "C", 2: "D"}.get(n, "-")
+    # OB & FVG dihapus (ablation: nol efek / merugikan). Sistem sekarang
+    # Trend + Momentum + Liquidity Sweep — bukti /tmp/scalp_variant2.py:
+    # +0.275R (vs baseline +0.254R), win 58%, 88 sinyal.
+    # Trend H1 wajib (arah jelas). Grade: A=3/3, B=2/3, C=1/3.
+    grade = {3: "A", 2: "B", 1: "C"}.get(n, "-")
     dirn = "BUY" if direction > 0 else "SELL"
 
     eligible = n >= MIN_TRIGGERS and trend_trig.passed
@@ -273,7 +270,7 @@ def run_backtest(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                            "win_rate": round(gdf["won"].mean() * 100, 1),
                            "exp_r": round(gdf["r"].mean(), 3)}
     for n, ndf in df.groupby("n"):
-        calib[f"{int(n)}/5"] = {"n": len(ndf),
+        calib[f"{int(n)}/3"] = {"n": len(ndf),
                                 "win_rate": round(ndf["won"].mean() * 100, 1),
                                 "exp_r": round(ndf["r"].mean(), 3)}
     return calib
@@ -286,12 +283,12 @@ def format_message(sig: ScalpSignal) -> str:
     if sig.direction == "NO-TRADE":
         lolos = [t.name for t in sig.triggers if t.passed]
         return (f"⚪ <b>SCALP — belum eligible</b>\n<i>{wib:%d %b %H:%M} WIB · "
-                f"${sig.price:,.2f}</i>\n\nTrigger lolos: {sig.n_triggers}/5 "
+                f"${sig.price:,.2f}</i>\n\nTrigger lolos: {sig.n_triggers}/3 "
                 f"(min {MIN_TRIGGERS})\n" +
                 ("\n".join(f"✅ {n}" for n in lolos) or "—"))
 
     icon = "🟢" if sig.direction == "BUY" else "🔴"
-    L = [f"{icon} <b>SCALP {sig.direction} XAUUSD</b> · Grade {sig.grade} ({sig.n_triggers}/5)",
+    L = [f"{icon} <b>SCALP {sig.direction} XAUUSD</b> · Grade {sig.grade} ({sig.n_triggers}/3)",
         f"<i>{wib:%d %b %H:%M} WIB · ${sig.price:,.2f}</i>", ""]
     L.append(f"Entry: <b>${sig.price:,.2f}</b>")
     L.append(f"SL: <b>${sig.stop_loss:,.2f}</b>")
@@ -325,7 +322,7 @@ def save_state(d: dict) -> None:
 
 def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str]:
     if sig.direction == "NO-TRADE":
-        return False, f"belum eligible ({sig.n_triggers}/5 trigger)"
+        return False, f"belum eligible ({sig.n_triggers}/3 trigger)"
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])
@@ -384,7 +381,7 @@ def main() -> int:
                              "direction": sig.direction, "price": sig.price}
             save_state(state)
             print(f"Terkirim: SCALP {sig.direction} grade {sig.grade} "
-                  f"({sig.n_triggers}/5) @ {sig.price:.2f}")
+                  f"({sig.n_triggers}/3) @ {sig.price:.2f}")
     else:
         print(f"Dilewati: {reason}")
     return 0
