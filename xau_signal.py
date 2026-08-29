@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import html
 import json
 import os
 import sys
@@ -124,6 +125,7 @@ class Signal:
     news_note: str = ""
     confidence: float | None = None   # None = belum terkalibrasi
     confidence_n: int = 0
+    exp_r: float | None = None        # ekspektasi R historis bucket ini — dasar gate
     calendar_trusted: bool = True
     data_source: str = ""
 
@@ -245,6 +247,18 @@ def swing_levels(df: pd.DataFrame, lookback: int = 120, k: int = 3):
 
 def _clamp(x: float, lo: float = -100, hi: float = 100) -> float:
     return max(lo, min(hi, x))
+
+
+def esc(s: str) -> str:
+    """Escape teks dinamis sebelum masuk tag HTML Telegram.
+
+    Note komponen sering mengandung '>'/'<' literal (mis. "EMA20>EMA50"),
+    yang membuat parser HTML Telegram menganggapnya tag tak dikenal dan
+    menolak seluruh pesan dengan error 400 — sinyal gagal kirim SENYAP
+    (send_telegram cuma return False, workflow tidak crash). Selalu escape
+    field dinamis sebelum interpolasi ke dalam <b>/<i>/<code>.
+    """
+    return html.escape(str(s), quote=False)
 
 
 # ─────────────────────────── Scoring teknikal ───────────────────────────────
@@ -504,14 +518,21 @@ def load_calibration() -> dict:
 
 def lookup_confidence(calib: dict, grade: str, score: float):
     """
-    Confidence = win rate empiris dari backtest untuk bucket ini.
+    Confidence = win rate + ekspektasi R empiris dari backtest untuk bucket ini.
     Kalau sampelnya kurang dari 20, kembalikan None — jangan karang angka.
+
+    exp_r (ekspektasi R) dipakai sebagai kriteria gate, BUKAN win_rate mentah:
+    win rate <50% bisa tetap profitable kalau reward:risk-nya cukup besar
+    (terbukti di data: bucket skor 60-69 menang cuma 48% tapi ekspektasi
+    +0.38R/trade — sebaliknya bucket 40-59 menang lebih tinggi tapi
+    ekspektasi negatif). Menggerbang pakai win_rate mentah menolak setup
+    yang justru paling menguntungkan.
     """
     for k in (f"{grade}:{int(abs(score) // 10) * 10}", f"{grade}:*"):
         e = calib.get(k)
         if e and e.get("n", 0) >= 20:
-            return float(e["win_rate"]), int(e["n"])
-    return None, 0
+            return float(e["win_rate"]), int(e["n"]), e.get("exp_r")
+    return None, 0, None
 
 
 # ───────────────────────── Pembentukan signal ───────────────────────────────
@@ -569,7 +590,8 @@ def build_signal(bias, entry, macro, events, now, calib=None,
     else:
         direction, grade = raw, "C"
 
-    conf, conf_n = lookup_confidence(calib, grade, composite) if grade != "—" else (None, 0)
+    conf, conf_n, exp_r = (lookup_confidence(calib, grade, composite)
+                           if grade != "—" else (None, 0, None))
 
     sign = 1 if raw == "BUY" else -1
     z = (px - sign * 0.25 * a, px + sign * 0.15 * a)
@@ -587,7 +609,7 @@ def build_signal(bias, entry, macro, events, now, calib=None,
                   components=comps, checks=checks, news_events=upcoming,
                   blackout=blackout, news_note=news_note,
                   calendar_trusted=calendar_trusted, data_source=data_source,
-                  confidence=conf, confidence_n=conf_n)
+                  confidence=conf, confidence_n=conf_n, exp_r=exp_r)
 
 
 # ──────────────────────────────── Backtest ──────────────────────────────────
@@ -610,7 +632,7 @@ def run_backtest(entry, bias, macro, horizon: int = 48) -> dict:
         if sig.direction == "NO-TRADE":
             continue
 
-        tp1, sl = sig.targets[0], sig.stop_loss
+        tp1, sl, rr1 = sig.targets[0], sig.stop_loss, sig.rr[0]
         won = None
         for _, bar in entry.iloc[i + 1:i + 1 + horizon].iterrows():
             if sig.direction == "BUY":
@@ -626,7 +648,8 @@ def run_backtest(entry, bias, macro, horizon: int = 48) -> dict:
         if won is None:
             continue
         rows.append({"grade": sig.grade,
-                     "bucket": int(abs(sig.composite) // 10) * 10, "won": won})
+                     "bucket": int(abs(sig.composite) // 10) * 10, "won": won,
+                     "r": rr1 if won else -1.0})
 
     if not rows:
         return {}
@@ -635,13 +658,16 @@ def run_backtest(entry, bias, macro, horizon: int = 48) -> dict:
     calib = {}
     for g, gdf in df.groupby("grade"):
         calib[f"{g}:*"] = {"n": len(gdf),
-                           "win_rate": round(gdf["won"].mean() * 100, 1)}
+                           "win_rate": round(gdf["won"].mean() * 100, 1),
+                           "exp_r": round(gdf["r"].mean(), 3)}
         for bkt, bdf in gdf.groupby("bucket"):
             calib[f"{g}:{bkt}"] = {"n": len(bdf),
-                                   "win_rate": round(bdf["won"].mean() * 100, 1)}
+                                   "win_rate": round(bdf["won"].mean() * 100, 1),
+                                   "exp_r": round(bdf["r"].mean(), 3)}
     calib["_meta"] = {"generated": datetime.now(timezone.utc).isoformat(),
                       "total_signals": len(df), "horizon_bars": horizon,
-                      "overall_win_rate": round(df["won"].mean() * 100, 1)}
+                      "overall_win_rate": round(df["won"].mean() * 100, 1),
+                      "overall_exp_r": round(df["r"].mean(), 3)}
     return calib
 
 
@@ -740,7 +766,7 @@ def format_message(sig: Signal) -> str:
          f"<code>{sig.signal_id()}</code> · <i>{wib:%d %b %Y %H:%M} WIB</i>", ""]
 
     if sig.blackout:
-        L += [f"⛔ <b>BLACKOUT</b> — {sig.blackout}", ""]
+        L += [f"⛔ <b>BLACKOUT</b> — {esc(sig.blackout)}", ""]
 
     if sig.confidence is not None:
         L.append(f"📊 Win rate historis: <b>{sig.confidence:.0f}%</b> "
@@ -771,25 +797,25 @@ def format_message(sig: Signal) -> str:
         wajib = [c for c in sig.checks if c.mandatory]
         konf = [c for c in sig.checks if not c.mandatory]
         L.append(f"<b>Syarat wajib</b> ({sum(c.passed for c in wajib)}/{len(wajib)})")
-        L += [f"{'✅' if c.passed else '❌'} {c.name} — <i>{c.note}</i>" for c in wajib]
+        L += [f"{'✅' if c.passed else '❌'} {esc(c.name)} — <i>{esc(c.note)}</i>" for c in wajib]
         L.append(f"\n<b>Konfirmasi</b> ({sum(c.passed for c in konf)}/{len(konf)}, "
                  f"min {MIN_CONFIRMS})")
-        L += [f"{'✅' if c.passed else '➖'} {c.name} — <i>{c.note}</i>" for c in konf]
+        L += [f"{'✅' if c.passed else '➖'} {esc(c.name)} — <i>{esc(c.note)}</i>" for c in konf]
         L.append("")
 
     L.append("<b>Komponen teknikal</b>")
     for c in sorted(sig.components, key=lambda x: -abs(x.contribution)):
         m = "▲" if c.score > 10 else "▼" if c.score < -10 else "•"
-        L.append(f"{m} {c.name}: {c.score:+.0f} — <i>{c.note}</i>")
+        L.append(f"{m} {esc(c.name)}: {c.score:+.0f} — <i>{esc(c.note)}</i>")
 
-    L += ["", f"<b>News</b>: {sig.news_note}"]
+    L += ["", f"<b>News</b>: {esc(sig.news_note)}"]
     for e in sig.news_events:
         dot = {"High": "🔴", "Medium": "🟠"}.get(e["impact"], "⚪")
         t = e["time"].astimezone(timezone(timedelta(hours=7)))
-        L.append(f"{dot} {t:%d/%m %H:%M} {e['country']} — {e['title']}")
+        L.append(f"{dot} {t:%d/%m %H:%M} {esc(e['country'])} — {esc(e['title'])}")
 
     if sig.data_source:
-        L.append(f"\n<i>Sumber data: {sig.data_source}</i>")
+        L.append(f"\n<i>Sumber data: {esc(sig.data_source)}</i>")
     L += ["", "<i>Analisis otomatis, bukan rekomendasi investasi. "
               "Verifikasi sendiri sebelum eksekusi.</i>"]
     return "\n".join(L)
@@ -890,12 +916,15 @@ def should_send(sig: Signal, state: dict, now: datetime):
         return False, "tidak ada setup yang lolos gating"
     if sig.blackout:
         return False, f"blackout: {sig.blackout[:60]}"
-    # Gate kalibrasi: tolak bucket grade/skor yang riwayatnya menang <50%.
-    # confidence None berarti sampel <20 (lookup_confidence) — belum cukup
+    # Gate kalibrasi: tolak bucket grade/skor yang riwayatnya EKSPEKTASI R
+    # negatif — bukan win_rate mentah. Win rate <50% bisa tetap profitable
+    # kalau reward:risk cukup besar (data: bucket skor 60-69 menang 48%
+    # tapi ekspektasi +0.38R; bucket 40-59 menang lebih tinggi tapi
+    # ekspektasi negatif). exp_r None berarti sampel <20 — belum cukup
     # data untuk digating, biarkan skor teknikal saja yang bicara.
-    if sig.confidence is not None and sig.confidence < 50:
-        return False, (f"win rate historis {sig.confidence:.0f}% "
-                        f"(n={sig.confidence_n}) di bawah ambang 50%")
+    if sig.exp_r is not None and sig.exp_r < 0:
+        return False, (f"ekspektasi historis {sig.exp_r:+.2f}R "
+                        f"(n={sig.confidence_n}) negatif")
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])

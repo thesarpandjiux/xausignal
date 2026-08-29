@@ -297,7 +297,7 @@ def format_message(sig: ScalpSignal) -> str:
     L.append("<b>Trigger terpenuhi</b>")
     for t in sig.triggers:
         m = "✅" if t.passed else "➖"
-        L.append(f"{m} {t.name} — <i>{t.note}</i>")
+        L.append(f"{m} {xs.esc(t.name)} — <i>{xs.esc(t.note)}</i>")
     L += ["", "<i>Mode scalp: entry di POTENSI reaction (sentuh zona + sweep), "
               "bukan setelah konfirmasi candle close. Risiko whipsaw lebih "
               "tinggi dari sinyal swing biasa.</i>",
