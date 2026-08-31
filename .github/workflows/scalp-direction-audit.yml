@@ -43,7 +43,10 @@ jobs:
       - name: Audit arah BUY SELL
         env:
           SCALP_AUDIT_CACHE: /tmp/scalp5000
-        run: python scripts/scalp_direction_audit.py | tee scalp-direction-audit.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/scalp_direction_audit.py | tee scalp-direction-audit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: scalp-direction-audit

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, "/tmp/xausignal_fresh")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import xau_scalp as sc
 import xau_signal as xs
 
