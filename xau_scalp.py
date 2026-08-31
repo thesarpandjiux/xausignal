@@ -85,6 +85,8 @@ class ScalpSignal:
     targets: list[float] = field(default_factory=list)
     rr: list[float] = field(default_factory=list)
     data_source: str = ""
+    setup_id: str = ""
+    breakout_level: float = 0.0
 
     def signal_id(self) -> str:
         return f"{self.time:%y%m%d-%H%M}-SC{self.direction[:1]}{self.n_triggers}"
@@ -236,11 +238,16 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
     risk = abs(px - sl)
     tp1 = px + direction * MIN_RR * risk
     tp2 = px + direction * (MIN_RR + 1) * risk
+    level = float(m15["close"].iloc[-21:-1].max() if direction > 0
+                  else m15["close"].iloc[-21:-1].min())
+    candle = pd.Timestamp(m15.index[-1]).strftime("%Y%m%dT%H%M")
+    setup_id = f"{dirn}:{candle}:{level:.2f}"
 
     return ScalpSignal(time=now, direction=dirn, grade=grade, n_triggers=n,
                        triggers=triggers, price=px, atr=a, stop_loss=sl,
                        targets=[tp1, tp2], rr=[MIN_RR, MIN_RR + 1],
-                       data_source=data_source)
+                       data_source=data_source, setup_id=setup_id,
+                       breakout_level=level)
 
 
 # ─────────────────────────────── Backtest ───────────────────────────────────
@@ -370,9 +377,25 @@ def log_signal(sig: ScalpSignal, sent: bool) -> None:
         w.writerow(row)
 
 
+def reset_setup_if_inside_range(state: dict, m15: pd.DataFrame) -> bool:
+    active = state.get("active_setup")
+    if not active:
+        return False
+    close = float(m15["close"].iloc[-1])
+    level = float(active["level"])
+    inside = close <= level if active["direction"] == "BUY" else close >= level
+    if inside:
+        state.pop("active_setup", None)
+        return True
+    return False
+
+
 def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str]:
     if sig.direction == "NO-TRADE":
         return False, f"belum eligible ({sig.n_triggers}/3 trigger)"
+    active = state.get("active_setup")
+    if active and active.get("direction") == sig.direction:
+        return False, "duplikat setup structure break belum reset"
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])
@@ -444,6 +467,7 @@ def main() -> int:
     sig = build_scalp_signal(h1, m15, m5, now, data_source=src)
     msg = format_message(sig)
     state = load_state()
+    setup_reset = reset_setup_if_inside_range(state, m15)
     ok, reason = should_send(sig, state, now)
 
     if args.dry_run:
@@ -459,10 +483,15 @@ def main() -> int:
         if sent:
             state["last"] = {"id": sig.signal_id(), "time": now.isoformat(),
                              "direction": sig.direction, "price": sig.price}
+            state["active_setup"] = {"id": sig.setup_id,
+                                     "direction": sig.direction,
+                                     "level": sig.breakout_level}
             save_state(state)
             print(f"Terkirim: SCALP {sig.direction} grade {sig.grade} "
                   f"({sig.n_triggers}/3) @ {sig.price:.2f}")
     else:
+        if setup_reset:
+            save_state(state)
         print(f"Dilewati: {reason}")
     return 0
 

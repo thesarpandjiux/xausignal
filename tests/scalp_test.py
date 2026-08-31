@@ -127,6 +127,28 @@ def test_order_block_positive_and_negative():
     ok("Order Block: positif (di zona) dan negatif (jauh dari zona) benar")
 
 
+def test_setup_dedup_persists_until_range_reset():
+    now = datetime.now(timezone.utc)
+    sig = sc.ScalpSignal(time=now, direction="BUY", grade="B", n_triggers=2,
+                         price=100, atr=1, setup_id="BUY:20260101T1200:99.50")
+    state = {"active_setup": {"id": sig.setup_id, "direction": "BUY",
+                              "level": 99.5},
+             "last": {"time": (now - pd.Timedelta(hours=2)).isoformat(),
+                      "direction": "BUY", "price": 99}}
+    allowed, reason = sc.should_send(sig, state, now)
+    assert not allowed and "setup" in reason
+
+    closes = np.full(30, 99.0)
+    idx = pd.date_range("2026-01-01", periods=30, freq="15min", tz="UTC")
+    m15 = pd.DataFrame({"open": closes, "high": closes + 1, "low": closes - 1,
+                        "close": closes}, index=idx)
+    sc.reset_setup_if_inside_range(state, m15)
+    assert "active_setup" not in state
+    allowed, _ = sc.should_send(sig, state, now)
+    assert allowed
+    ok("setup sama diblokir sampai harga kembali ke dalam range M15")
+
+
 def test_backtest_returns_calibration_buckets():
     rng = np.random.default_rng(123)
 
@@ -168,6 +190,7 @@ if __name__ == "__main__":
     test_trend_and_full_pipeline()
     test_fvg_bullish()
     test_order_block_positive_and_negative()
+    test_setup_dedup_persists_until_range_reset()
     test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
     print("\n" + "─" * 50)
