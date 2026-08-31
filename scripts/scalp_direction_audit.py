@@ -52,16 +52,19 @@ def m15_for_h1(h1):
     return h1
 
 
-def direction_m15_with_h1_veto(h1, m15):
+def h1_extreme(h1):
+    """+1/-1 hanya saat gap EMA H1 ekstrem; 0 berarti tidak memveto."""
     c = h1["close"]
     e20, e50 = xs.ema(c, 20), xs.ema(c, 50)
     a = float(xs.atr(h1).iloc[-1])
     gap = (e20.iloc[-1] - e50.iloc[-1]) / a if a else 0.0
-    if gap > 0.5:
-        return 1
-    if gap < -0.5:
-        return -1
-    return direction_m15(m15)
+    return 1 if gap > 0.5 else -1 if gap < -0.5 else 0
+
+
+def direction_m15_with_h1_veto(h1, m15):
+    direction = direction_m15(m15)
+    extreme = h1_extreme(h1)
+    return 0 if extreme and direction != extreme else direction
 
 
 def direction_struct(h1, m15):
@@ -70,15 +73,14 @@ def direction_struct(h1, m15):
     hi20 = float(c.iloc[-21:-1].max())
     lo20 = float(c.iloc[-21:-1].min())
     px = float(c.iloc[-1])
-    if px > hi20 and direction_m15(m15) >= 0:
-        return 1
-    if px < lo20 and direction_m15(m15) <= 0:
-        return -1
-    return 0
+    direction = 1 if px > hi20 and direction_m15(m15) >= 0 else -1 if px < lo20 and direction_m15(m15) <= 0 else 0
+    extreme = h1_extreme(h1)
+    return 0 if extreme and direction and direction != extreme else direction
 
 
 def run(h1, m15, m5, direction_fn, horizon=12):
     rows = []
+    last_by_direction = {}
     for i in range(120, len(m5) - horizon):
         ts = m5.index[i]
         h1s = h1[h1.index <= ts]
@@ -103,6 +105,9 @@ def run(h1, m15, m5, direction_fn, horizon=12):
         risk = abs(px - sl)
         tp1 = px + direction * sc.MIN_RR * risk
         dirn = "BUY" if direction > 0 else "SELL"
+        if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
+            continue
+        last_by_direction[dirn] = ts
         won = None
         for _, bar in m5.iloc[i + 1:i + 1 + horizon].iterrows():
             if dirn == "BUY":
