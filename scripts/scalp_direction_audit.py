@@ -82,9 +82,13 @@ def run(h1, m15, m5, direction_fn, horizon=12):
     rows = []
     last_by_direction = {}
     for i in range(120, len(m5) - horizon):
-        ts = m5.index[i]
-        h1s = h1[h1.index <= ts]
-        m15s = m15[m15.index <= ts]
+        # Keputusan dibuat setelah candle M5 kandidat tutup, bukan saat mulai.
+        ts = m5.index[i] + pd.Timedelta(minutes=5)
+        # Index Dukascopy menandai awal candle. Pada ts keputusan, candle H1/M15
+        # yang sedang berjalan belum punya close final; memasukkannya memberi
+        # look-ahead bias. Hanya pakai candle yang sudah benar-benar tutup.
+        h1s = h1[h1.index + pd.Timedelta(hours=1) <= ts]
+        m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
         if len(h1s) < 60 or len(m15s) < 60:
             continue
         direction = direction_fn(h1s, m15s)
