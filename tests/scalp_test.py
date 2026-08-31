@@ -12,6 +12,28 @@ import pandas as pd
 from datetime import datetime, timezone
 
 import xau_scalp as sc
+import datafeed
+
+
+def test_rejects_stale_or_old_m5_feed():
+    now = datetime.now(timezone.utc)
+    idx = pd.date_range(end=now - pd.Timedelta(minutes=20), periods=100, freq="5min", tz="UTC")
+    values = np.full(100, 4500.0)
+    frame = pd.DataFrame({"open": values, "high": values + 1, "low": values - 1,
+                          "close": values}, index=idx)
+    stale = datafeed.Feed(frame, "cache", stale=True, age_s=1)
+    live_but_old = datafeed.Feed(frame, "twelvedata", stale=False)
+    try:
+        sc.validate_live_feeds([stale], now)
+        assert False, "stale feed harus ditolak"
+    except RuntimeError:
+        pass
+    try:
+        sc.validate_live_feeds([live_but_old], now)
+        assert False, "candle M5 lama harus ditolak"
+    except RuntimeError:
+        pass
+    ok("stale feed dan candle M5 >10 menit ditolak")
 
 
 def mk(rows, freq="15min"):
@@ -119,6 +141,7 @@ def test_no_trigger_when_trend_choppy():
 
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
+    test_rejects_stale_or_old_m5_feed()
     test_trend_and_full_pipeline()
     test_fvg_bullish()
     test_order_block_positive_and_negative()

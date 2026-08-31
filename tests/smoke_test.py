@@ -206,6 +206,9 @@ def main():
     except RuntimeError:
         pass
     check("tidak berganti instrumen saat sumber mati", not switched)
+    poisoned, _, _ = d._read_cache("ohlc_1d", 999999)
+    check("sumber yang ditolak tidak meracuni cache",
+          poisoned is None or float(poisoned["close"].iloc[-1]) != 4594.0)
 
     d.reset_session_source()
     check("sesi baru boleh pilih sumber lain",

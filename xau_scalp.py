@@ -359,6 +359,19 @@ def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str
     return True, "ok"
 
 
+def validate_live_feeds(feeds: list, now: datetime) -> None:
+    """Scalp harus fail-closed: cache fallback dan candle M5 lama dilarang."""
+    for feed in feeds:
+        if feed.stale:
+            raise RuntimeError(f"data harga basi: {feed.label()}")
+    last = pd.Timestamp(feeds[-1].df.index[-1])
+    if last.tzinfo is None:
+        last = last.tz_localize("UTC")
+    age = pd.Timestamp(now) - last
+    if age > pd.Timedelta(minutes=10):
+        raise RuntimeError(f"candle M5 terakhir terlalu lama: {age.total_seconds() / 60:.0f} menit")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
@@ -368,9 +381,17 @@ def main() -> int:
 
     now = datetime.now(timezone.utc)
     prefer = "dukascopy" if args.backtest else None
-    h1, _ = xs.get_ohlc(TF_TREND, prefer=prefer)
-    m15, _ = xs.get_ohlc(TF_MOMENTUM, prefer=prefer)
-    m5, src = xs.get_ohlc(TF_ENTRY, prefer=prefer)
+    if args.backtest:
+        h1, _ = xs.get_ohlc(TF_TREND, prefer=prefer)
+        m15, _ = xs.get_ohlc(TF_MOMENTUM, prefer=prefer)
+        m5, src = xs.get_ohlc(TF_ENTRY, prefer=prefer)
+    else:
+        import datafeed
+        feeds = [datafeed.get_ohlc(tf, xs.BARS) for tf in
+                 (TF_TREND, TF_MOMENTUM, TF_ENTRY)]
+        validate_live_feeds(feeds, now)
+        h1, m15, m5 = [f.df for f in feeds]
+        src = feeds[-1].label()
 
     if args.backtest:
         print("Menjalankan backtest scalp…")

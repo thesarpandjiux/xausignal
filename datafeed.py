@@ -267,17 +267,19 @@ def get_ohlc(interval: str, bars: int = 400, prefer: str | None = None,
             df = fn(interval, bars)
             if len(df) < 60:
                 raise RuntimeError(f"hanya {len(df)} bar, terlalu sedikit")
-            _write_cache(ckey, df)
 
             if _SESSION_SOURCE is None:
                 _SESSION_SOURCE = name
             elif name != _SESSION_SOURCE:
                 # Sampai di sini berarti sumber terkunci mati di tengah jalan.
                 # Instrumennya bisa berbeda — jangan campur, lebih baik gagal.
+                # Jangan tulis data yang ditolak ke cache: fallback berikutnya
+                # akan membacanya sebagai cache baru dan melewati penguncian.
                 raise RuntimeError(
                     f"sumber berganti {_SESSION_SOURCE} → {name} di tengah "
                     f"evaluasi ({INSTRUMENT.get(_SESSION_SOURCE)} vs "
                     f"{INSTRUMENT.get(name)}). Level harga tidak sebanding.")
+            _write_cache(ckey, df)
             return Feed(df, name)
         except Exception as e:
             errors.append(f"{name}: {e}")
