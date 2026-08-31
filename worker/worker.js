@@ -74,7 +74,25 @@ export default {
     }
     return new Response("ok");
   },
+
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(dispatch(env, "scalp_tick"));
+  },
 };
+
+async function dispatch(env, eventType) {
+  const r = await fetch(`https://api.github.com/repos/${env.GH_REPO}/dispatches`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.GH_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "xausignal-worker",
+    },
+    body: JSON.stringify({ event_type: eventType }),
+  });
+  if (!r.ok) throw new Error(`GitHub dispatch HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+}
 
 async function route(cmd, chatId, env) {
   switch (cmd) {

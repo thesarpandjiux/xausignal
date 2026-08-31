@@ -1,15 +1,15 @@
 name: scalp
 
-# Mode scalping — TERPISAH dari signal.yml (mode swing). Jalan tiap 15 menit
-# karena timeframe entry M5 butuh evaluasi lebih sering dari mode swing (H1).
+# Mode scalping — TERPISAH dari signal.yml (mode swing). Dipicu Cloudflare
+# Cron tiap 5 menit lewat repository_dispatch agar setup M5 tidak terlewat.
 #
 # State (scalp_state.json) di branch TERPISAH bot-scalp, bukan bot-data —
 # sama alasan dengan bot-cmd/bot-calib: signal.yml push --force ke bot-data
 # di menit lain, menaruh data tak berhubungan di branch yang sama adalah
 # persis penyebab bug #15 (dua workflow saling menimpa state).
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  repository_dispatch:
+    types: [scalp_tick]
   workflow_dispatch:
 
 permissions:
