@@ -45,6 +45,25 @@ def ok(label):
     print(f"  ✅ {label}")
 
 
+def test_structure_direction_is_symmetric():
+    idx15 = pd.date_range("2026-01-01", periods=80, freq="15min", tz="UTC")
+    base = np.linspace(100, 104, 80)
+    up = pd.DataFrame({"open": base, "high": base + 1, "low": base - 1,
+                       "close": base}, index=idx15)
+    up.iloc[-1, up.columns.get_loc("close")] = float(up["close"].iloc[-21:-1].max()) + 2
+    down = up.copy()
+    down["close"] = np.linspace(104, 100, 80)
+    down.iloc[-1, down.columns.get_loc("close")] = float(down["close"].iloc[-21:-1].min()) - 2
+
+    idx1h = pd.date_range("2025-12-20", periods=200, freq="1h", tz="UTC")
+    flat = np.full(200, 102.0)
+    h1 = pd.DataFrame({"open": flat, "high": flat + 1, "low": flat - 1,
+                       "close": flat}, index=idx1h)
+    assert sc.structure_direction(h1, up)[0] == 1
+    assert sc.structure_direction(h1, down)[0] == -1
+    ok("structure break menilai BUY dan SELL secara simetris")
+
+
 def test_trend_and_full_pipeline():
     rng = np.random.default_rng(42)
 
@@ -59,6 +78,9 @@ def test_trend_and_full_pipeline():
 
     h1 = make_df(200, "1h", trend_per_bar=1.5, noise=2.0)
     m15 = make_df(200, "15min", trend_per_bar=0.4, noise=1.0)
+    breakout = float(m15["close"].iloc[-21:-1].max()) + 3.0
+    m15.iloc[-1, m15.columns.get_loc("close")] = breakout
+    m15.iloc[-1, m15.columns.get_loc("high")] = breakout + 0.5
     m5 = make_df(200, "5min", trend_per_bar=0.15, noise=0.5)
     swing_low = float(m5["low"].tail(40).min())
     m5.iloc[-2, m5.columns.get_loc("low")] = swing_low - 1.0
@@ -68,7 +90,7 @@ def test_trend_and_full_pipeline():
     assert sig.direction == "BUY", f"expected BUY, got {sig.direction}"
     assert sig.n_triggers >= sc.MIN_TRIGGERS
     names = {t.name for t in sig.triggers if t.passed}
-    assert "Trend H1" in names
+    assert "Structure Break M15" in names
     assert "Liquidity Sweep M5" in names
     assert sig.stop_loss < sig.price
     assert all(tp > sig.price for tp in sig.targets)
@@ -142,6 +164,7 @@ def test_no_trigger_when_trend_choppy():
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
     test_rejects_stale_or_old_m5_feed()
+    test_structure_direction_is_symmetric()
     test_trend_and_full_pipeline()
     test_fvg_bullish()
     test_order_block_positive_and_negative()

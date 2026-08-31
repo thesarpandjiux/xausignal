@@ -104,6 +104,29 @@ def trend_h1(h1: pd.DataFrame) -> tuple[int, Trigger]:
     return 0, Trigger("Trend H1", False, "tidak searah / choppy")
 
 
+def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame) -> tuple[int, Trigger]:
+    """Arah dari break close M15 atas/bawah 20 candle; H1 hanya veto ekstrem."""
+    c = m15["close"]
+    hi20 = float(c.iloc[-21:-1].max())
+    lo20 = float(c.iloc[-21:-1].min())
+    px = float(c.iloc[-1])
+    m15_dir = 1 if px > hi20 else -1 if px < lo20 else 0
+    if not m15_dir:
+        return 0, Trigger("Structure Break M15", False, "belum break range 20 candle")
+
+    h1c = h1["close"]
+    e20, e50 = xs.ema(h1c, 20), xs.ema(h1c, 50)
+    a = float(xs.atr(h1).iloc[-1])
+    gap = (float(e20.iloc[-1]) - float(e50.iloc[-1])) / a if a else 0.0
+    extreme = 1 if gap > 0.5 else -1 if gap < -0.5 else 0
+    if extreme and m15_dir != extreme:
+        return 0, Trigger("Structure Break M15", False,
+                          f"break diveto tren H1 ekstrem ({gap:+.2f} ATR)")
+    side = "atas" if m15_dir > 0 else "bawah"
+    return m15_dir, Trigger("Structure Break M15", True,
+                            f"close break {side} range 20 candle")
+
+
 def momentum_m15(m15: pd.DataFrame, direction: int) -> Trigger:
     c = m15["close"]
     r = float(xs.rsi(c).iloc[-1])
@@ -181,7 +204,7 @@ def liquidity_sweep(m5: pd.DataFrame, direction: int) -> Trigger:
 
 def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                         now: datetime, data_source: str = "") -> ScalpSignal:
-    direction, trend_trig = trend_h1(h1)
+    direction, trend_trig = structure_direction(h1, m15)
     px = float(m5["close"].iloc[-1])
     a = float(xs.atr(m5).iloc[-1])
 
@@ -353,10 +376,15 @@ def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])
-        moved = abs(sig.price - last.get("price", 0)) / sig.atr if sig.atr else 99
-        if age < timedelta(minutes=45) and moved < 0.5:
+        if age < timedelta(minutes=45):
             return False, "duplikat, cooldown 45 menit"
     return True, "ok"
+
+
+def closed_frame(feed, interval: str, now: datetime) -> pd.DataFrame:
+    """Buang candle aktif; indikator hanya boleh memakai candle yang sudah tutup."""
+    delta = pd.Timedelta(minutes={"5m": 5, "15m": 15, "1h": 60}[interval])
+    return feed.df[feed.df.index + delta <= pd.Timestamp(now)]
 
 
 def validate_live_feeds(feeds: list, now: datetime) -> None:
@@ -390,7 +418,10 @@ def main() -> int:
         feeds = [datafeed.get_ohlc(tf, xs.BARS) for tf in
                  (TF_TREND, TF_MOMENTUM, TF_ENTRY)]
         validate_live_feeds(feeds, now)
-        h1, m15, m5 = [f.df for f in feeds]
+        h1, m15, m5 = [closed_frame(f, tf, now) for f, tf in
+                       zip(feeds, (TF_TREND, TF_MOMENTUM, TF_ENTRY))]
+        if min(map(len, (h1, m15, m5))) < 60:
+            raise RuntimeError("candle closed tidak cukup untuk evaluasi")
         src = feeds[-1].label()
 
     if args.backtest:
