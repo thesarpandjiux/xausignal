@@ -1,0 +1,51 @@
+name: scalp-direction-audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ambil 5000 bar Dukascopy per timeframe
+        run: |
+          mkdir -p /tmp/scalp5000
+          python - <<'PY'
+          import time
+          from pathlib import Path
+          import datafeed
+          out = Path('/tmp/scalp5000')
+          for tf in ('1h', '15m', '5m'):
+              for attempt in range(1, 6):
+                  try:
+                      print(f'fetch {tf}, attempt {attempt}', flush=True)
+                      df = datafeed.from_dukascopy(tf, 5000)
+                      if len(df) < 4900:
+                          raise RuntimeError(f'bar kurang: {len(df)}')
+                      df.tail(5000).to_csv(out / f'ohlc_{tf}.csv')
+                      print(tf, len(df), df.index[0], df.index[-1], flush=True)
+                      break
+                  except Exception:
+                      if attempt == 5:
+                          raise
+                      time.sleep(10 * attempt)
+          PY
+      - name: Audit arah BUY SELL
+        env:
+          SCALP_AUDIT_CACHE: /tmp/scalp5000
+        run: python scripts/scalp_direction_audit.py | tee scalp-direction-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scalp-direction-audit
+          path: scalp-direction-audit.txt
+          retention-days: 30
