@@ -37,6 +37,7 @@ ENV: sama seperti xau_signal.py (TELEGRAM_BOT_TOKEN/CHAT_ID, TWELVEDATA_API_KEY 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sys
@@ -61,6 +62,7 @@ MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
 CALIB_FILE = BASE / "scalp_calibration.json"
+LOG_FILE = BASE / "signals.csv"
 
 
 @dataclass
@@ -320,6 +322,31 @@ def save_state(d: dict) -> None:
     STATE_FILE.write_text(json.dumps(d, default=str))
 
 
+def log_signal(sig: ScalpSignal, sent: bool) -> None:
+    """Catat sinyal scalp dalam skema journal.py; hanya satu baris per ID."""
+    if sig.direction == "NO-TRADE":
+        return
+    BASE.mkdir(parents=True, exist_ok=True)
+    new = not LOG_FILE.exists()
+    if not new:
+        with LOG_FILE.open(newline="") as f:
+            if sig.signal_id() in {r["id"] for r in csv.DictReader(f)}:
+                return
+    tps = (sig.targets + [None, None, None])[:3]
+    row = dict(zip(xs.SIGNAL_COLS, [
+        sig.time.isoformat(), sig.signal_id(), sig.direction, sig.grade,
+        sig.n_triggers, sig.n_triggers, 0, round(sig.price, 2),
+        round(sig.price, 2), round(sig.stop_loss, 2),
+        *[round(t, 2) if t is not None else "" for t in tps],
+        round(sig.rr[0], 2) if sig.rr else "", sig.n_triggers, sent,
+        sig.data_source.split(" (")[0], "scalp"]))
+    with LOG_FILE.open("a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=xs.SIGNAL_COLS)
+        if new:
+            w.writeheader()
+        w.writerow(row)
+
+
 def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str]:
     if sig.direction == "NO-TRADE":
         return False, f"belum eligible ({sig.n_triggers}/3 trigger)"
@@ -376,6 +403,7 @@ def main() -> int:
 
     if ok or args.force:
         sent = xs.send_telegram(msg)
+        log_signal(sig, sent)
         if sent:
             state["last"] = {"id": sig.signal_id(), "time": now.isoformat(),
                              "direction": sig.direction, "price": sig.price}

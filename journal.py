@@ -31,7 +31,8 @@ import datafeed  # noqa: F401  — memuat .env
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 SIGNALS = BASE / "signals.csv"
 JOURNAL = BASE / "journal.csv"
-HORIZON_H = 48          # batas waktu: kalau 48 jam belum kena apa-apa, dianggap batal
+HORIZON_H = float(os.getenv("JOURNAL_HORIZON_H", "48"))
+INTERVAL = os.getenv("JOURNAL_INTERVAL", "1h")
 
 JOURNAL_COLS = ["id", "time", "direction", "grade", "composite", "entry", "sl",
                 "tp1", "rr1", "outcome", "r_result", "closed_at", "note"]
@@ -104,9 +105,10 @@ def resolve(sig: pd.Series, price: pd.DataFrame) -> tuple[str, float, str, str]:
     last = float(fwd["close"].iloc[-1])
     risk = abs(entry - sl)
     r = ((last - entry) if buy else (entry - last)) / risk if risk else 0.0
-    if len(fwd) < HORIZON_H * 0.5:
-        return "PENDING", 0.0, "", f"baru {len(fwd)} jam berjalan"
-    return "TIMEOUT", round(r, 2), fwd.index[-1].isoformat(), f"{HORIZON_H}j tanpa TP/SL"
+    if fwd.index[-1] < t0 + timedelta(hours=HORIZON_H):
+        elapsed = (fwd.index[-1] - t0).total_seconds() / 3600
+        return "PENDING", 0.0, "", f"baru {elapsed:.1f} jam berjalan"
+    return "TIMEOUT", round(r, 2), fwd.index[-1].isoformat(), f"{HORIZON_H:g}j tanpa TP/SL"
 
 
 def cmd_update() -> int:
@@ -124,8 +126,9 @@ def cmd_update() -> int:
 
     oldest = min(s["time"] for s in todo)
     need_h = (datetime.now(timezone.utc) - oldest).total_seconds() / 3600 + HORIZON_H
-    bars = min(int(need_h * 1.6) + 100, 5000)
-    print(f"{len(todo)} sinyal perlu dinilai · mengambil ~{bars} bar H1…")
+    per_hour = {"5m": 12, "15m": 4, "1h": 1}.get(INTERVAL, 1)
+    bars = min(int(need_h * per_hour * 1.2) + 100, 5000)
+    print(f"{len(todo)} sinyal perlu dinilai · mengambil ~{bars} bar {INTERVAL}…")
 
     # Sinyal dari sumber berbeda TIDAK boleh dinilai bersama: yfinance memakai
     # futures GC=F yang berpremi ~$54 terhadap spot. Menilai sinyal spot dengan
@@ -140,7 +143,7 @@ def cmd_update() -> int:
     try:
         import datafeed
         want = next(iter(srcs)) if srcs else "dukascopy"
-        feed = datafeed.get_ohlc("1h", bars, prefer=want)
+        feed = datafeed.get_ohlc(INTERVAL, bars, prefer=want)
         if srcs and feed.source not in (want, "cache"):
             print(f"❌ Sinyal dibuat dari '{want}' tapi hanya '{feed.source}' "
                   f"yang tersedia sekarang.")
