@@ -164,7 +164,7 @@ def main():
     _rq.get = lambda url, params=None, **k: (_box.append(dict(params or {})), _R())[1]
     os.environ["TWELVEDATA_API_KEY"] = "dummy"
     _seen = {}
-    for _iv in ("1h", "4h", "1d"):
+    for _iv in ("5m", "15m", "1h", "4h", "1d"):
         _box.clear()
         try:
             d.from_twelvedata(_iv, 400)
@@ -172,6 +172,10 @@ def main():
             pass
         _seen[_iv] = _box[0] if _box else {}
     _rq.get = _real_get
+    check("5m dipetakan ke 5min", _seen["5m"].get("interval") == "5min",
+          _seen["5m"].get("interval"))
+    check("15m dipetakan ke 15min", _seen["15m"].get("interval") == "15min",
+          _seen["15m"].get("interval"))
     check("1d dipetakan ke 1day", _seen["1d"].get("interval") == "1day",
           _seen["1d"].get("interval"))
     check("1h tetap 1h", _seen["1h"].get("interval") == "1h")

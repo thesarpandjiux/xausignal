@@ -154,9 +154,10 @@ def from_twelvedata(interval: str, bars: int) -> pd.DataFrame:
     if not key:
         raise RuntimeError("TWELVEDATA_API_KEY tidak diset")
 
-    # Twelve Data memakai "1day"/"1week", BUKAN "1d"/"1w".
-    # Mengirim "1d" menghasilkan 400 Bad Request.
-    iv = {"1d": "1day", "1w": "1week", "1M": "1month"}.get(interval, interval)
+    # Twelve Data memakai "5min"/"15min"/"1day", bukan singkatan internal.
+    # Mengirim "5m", "15m", atau "1d" menghasilkan 400 Bad Request.
+    iv = {"5m": "5min", "15m": "15min", "1d": "1day",
+          "1w": "1week", "1M": "1month"}.get(interval, interval)
 
     params = {"symbol": "XAU/USD", "interval": iv,
               "outputsize": min(bars, 5000), "apikey": key, "format": "JSON"}
