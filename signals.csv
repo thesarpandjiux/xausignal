@@ -1,2 +1,3 @@
 time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confirms,sent,source,trigger
 2026-08-31T03:22:55.204148+00:00,260831-0322-SCS2,SELL,B,2,2,0,4475.5,4475.5,4482.5,4467.09,4460.09,,1.2,2,True,cache,scalp
+2026-08-31T13:01:09.894528+00:00,260831-1301-SCS2,SELL,B,2,2,0,4438.65,4438.65,4441.97,4434.67,4431.36,,1.2,2,True,twelvedata,scalp
