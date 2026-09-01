@@ -12,7 +12,7 @@ on:
         required: false
         default: "0"
       momentum_mode:
-        description: "baseline atau rsi_extreme_macd"
+        description: "baseline, rsi_extreme_macd, atau rsi_30_80_macd"
         required: false
         default: "baseline"
       rr:

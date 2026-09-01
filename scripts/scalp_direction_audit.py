@@ -90,12 +90,14 @@ def direction_struct(h1, m15):
 
 
 def momentum_passed(m15, direction):
-    if MOMENTUM_MODE == "rsi_extreme_macd":
+    if MOMENTUM_MODE in {"rsi_extreme_macd", "rsi_30_80_macd"}:
         c = m15["close"]
         rsi = float(xs.rsi(c).iloc[-1])
         _, _, hist = xs.macd(c)
         macd_up = float(hist.iloc[-1]) > float(hist.iloc[-4])
-        return (rsi < 30 and macd_up) if direction > 0 else (rsi > 80 and not macd_up)
+        if MOMENTUM_MODE == "rsi_extreme_macd":
+            return (rsi < 30 and macd_up) if direction > 0 else (rsi > 80 and not macd_up)
+        return (rsi > 30 and macd_up) if direction > 0 else (rsi < 80 and not macd_up)
     return sc.momentum_m15(m15, direction).passed
 
 
