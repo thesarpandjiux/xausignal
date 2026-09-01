@@ -68,15 +68,12 @@ def direction_m15_with_h1_veto(h1, m15):
 
 
 def direction_struct(h1, m15):
-    """Structure-break M15: close tertinggi/terendah 200 bar ditembus + H1 regime."""
+    """Structure-break M15: close tertinggi/terendah 20 bar ditembus + H1 regime."""
     c = m15["close"]
-    history = c.iloc[-sc.STRUCTURE_LOOKBACK - 1:-1]
-    if len(history) < sc.STRUCTURE_LOOKBACK:
-        return 0
-    range_high = float(history.max())
-    range_low = float(history.min())
+    hi20 = float(c.iloc[-21:-1].max())
+    lo20 = float(c.iloc[-21:-1].min())
     px = float(c.iloc[-1])
-    direction = 1 if px > range_high and direction_m15(m15) >= 0 else -1 if px < range_low and direction_m15(m15) <= 0 else 0
+    direction = 1 if px > hi20 and direction_m15(m15) >= 0 else -1 if px < lo20 and direction_m15(m15) <= 0 else 0
     extreme = h1_extreme(h1)
     return 0 if extreme and direction and direction != extreme else direction
 
