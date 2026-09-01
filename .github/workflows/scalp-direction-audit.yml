@@ -19,6 +19,10 @@ on:
         description: "Risk reward TP1"
         required: false
         default: "1.2"
+      horizon_bars:
+        description: "Horizon evaluasi dalam candle M5"
+        required: false
+        default: "12"
 
 permissions:
   contents: read
@@ -64,6 +68,7 @@ jobs:
           SCALP_MIN_BREAK_ATR: ${{ inputs.min_break_atr || '0' }}
           SCALP_MOMENTUM_MODE: ${{ inputs.momentum_mode || 'baseline' }}
           SCALP_AUDIT_RR: ${{ inputs.rr || '1.2' }}
+          SCALP_HORIZON_BARS: ${{ inputs.horizon_bars || '12' }}
         shell: bash
         run: |
           set -o pipefail

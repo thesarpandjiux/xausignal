@@ -19,6 +19,7 @@ STRUCTURE_LOOKBACK = int(_os.environ.get("SCALP_STRUCTURE_LOOKBACK", "20"))
 MIN_BREAK_ATR = float(_os.environ.get("SCALP_MIN_BREAK_ATR", "0"))
 MOMENTUM_MODE = _os.environ.get("SCALP_MOMENTUM_MODE", "baseline")
 AUDIT_RR = float(_os.environ.get("SCALP_AUDIT_RR", "1.2"))
+HORIZON_BARS = int(_os.environ.get("SCALP_HORIZON_BARS", "12"))
 
 
 def load(tf):
@@ -101,7 +102,7 @@ def momentum_passed(m15, direction):
     return sc.momentum_m15(m15, direction).passed
 
 
-def run(h1, m15, m5, direction_fn, horizon=12):
+def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS):
     rows = []
     last_by_direction = {}
     for i in range(120, len(m5) - horizon):
@@ -196,6 +197,7 @@ def main():
     print(f"min_break_atr={MIN_BREAK_ATR}")
     print(f"momentum_mode={MOMENTUM_MODE}")
     print(f"rr={AUDIT_RR}")
+    print(f"horizon_bars={HORIZON_BARS}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
