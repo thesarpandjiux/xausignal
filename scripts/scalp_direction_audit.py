@@ -151,10 +151,10 @@ def run(h1, m15, m5, direction_fn, horizon=12):
                 if bar["low"] <= tp1:
                     won = True
                     break
-        if won is None:
-            continue
+        outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        r_result = 0.0 if won is None else AUDIT_RR if won else -1.0
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
-                     "n": n, "won": won, "r": AUDIT_RR if won else -1.0})
+                     "n": n, "won": won, "outcome": outcome, "r": r_result})
     return pd.DataFrame(rows)
 
 
@@ -163,17 +163,22 @@ def stats(df, name):
         print(f"{name}: tidak ada sinyal")
         return
     total = len(df)
-    win = df["won"].mean() * 100
+    win = (df["outcome"] == "WIN").mean() * 100
     exp = df["r"].mean()
-    print(f"{name}: n={total} win={win:.1f}% exp_r={exp:+.3f}")
+    outcomes = df["outcome"].value_counts()
+    print(f"{name}: n={total} win={win:.1f}% exp_r={exp:+.3f} "
+          f"WIN={outcomes.get('WIN', 0)} LOSS={outcomes.get('LOSS', 0)} "
+          f"TIMEOUT={outcomes.get('TIMEOUT', 0)}")
     for d, g in df.groupby("dir"):
         if len(g):
-            print(f"  {d}: n={len(g)} win={g['won'].mean()*100:.1f}% exp_r={g['r'].mean():+.3f}")
+            gout = g["outcome"].value_counts()
+            print(f"  {d}: n={len(g)} win={(g['outcome'] == 'WIN').mean()*100:.1f}% "
+                  f"exp_r={g['r'].mean():+.3f} TIMEOUT={gout.get('TIMEOUT', 0)}")
     # walk-forward per 10 hari
     days = df["t"].dt.floor("10D")
     periods = []
     for _, g in df.groupby(days):
-        periods.append((g["won"].mean() * 100, g["r"].mean()))
+        periods.append(((g["outcome"] == "WIN").mean() * 100, g["r"].mean()))
     if periods:
         w = [p[0] for p in periods]
         e = [p[1] for p in periods]
