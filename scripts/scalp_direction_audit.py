@@ -13,7 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import xau_scalp as sc
 import xau_signal as xs
 
-CACHE = Path(__import__("os").environ.get("SCALP_AUDIT_CACHE", "/tmp/scalpcalib/cache"))
+_os = __import__("os")
+CACHE = Path(_os.environ.get("SCALP_AUDIT_CACHE", "/tmp/scalpcalib/cache"))
+STRUCTURE_LOOKBACK = int(_os.environ.get("SCALP_STRUCTURE_LOOKBACK", "20"))
 
 
 def load(tf):
@@ -68,12 +70,15 @@ def direction_m15_with_h1_veto(h1, m15):
 
 
 def direction_struct(h1, m15):
-    """Structure-break M15: close tertinggi/terendah 20 bar ditembus + H1 regime."""
+    """Structure-break M15 memakai lookback audit yang bisa divariasikan."""
     c = m15["close"]
-    hi20 = float(c.iloc[-21:-1].max())
-    lo20 = float(c.iloc[-21:-1].min())
+    history = c.iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    if len(history) < STRUCTURE_LOOKBACK:
+        return 0
+    range_high = float(history.max())
+    range_low = float(history.min())
     px = float(c.iloc[-1])
-    direction = 1 if px > hi20 and direction_m15(m15) >= 0 else -1 if px < lo20 and direction_m15(m15) <= 0 else 0
+    direction = 1 if px > range_high and direction_m15(m15) >= 0 else -1 if px < range_low and direction_m15(m15) <= 0 else 0
     extreme = h1_extreme(h1)
     return 0 if extreme and direction and direction != extreme else direction
 
@@ -164,6 +169,7 @@ def main():
     m15 = load("15m")
     m5 = load("5m")
     print(f"bar: h1={len(h1)} m15={len(m15)} m5={len(m5)}")
+    print(f"structure_lookback={STRUCTURE_LOOKBACK}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
