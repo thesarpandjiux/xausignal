@@ -61,7 +61,7 @@ jobs:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           XAU_HOME: /tmp/botscalp
           JOURNAL_INTERVAL: "5m"
-          JOURNAL_HORIZON_H: "1"
+          JOURNAL_HORIZON_H: "2"
         run: python journal.py update
 
       - name: Simpan state

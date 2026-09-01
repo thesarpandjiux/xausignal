@@ -94,7 +94,9 @@ def test_trend_and_full_pipeline():
     assert "Liquidity Sweep M5" in names
     assert sig.stop_loss < sig.price
     assert all(tp > sig.price for tp in sig.targets)
-    ok("tren naik + liquidity sweep -> BUY eligible, SL/TP arah benar")
+    assert sig.rr[0] == 2.0
+    assert abs((sig.targets[0] - sig.price) / (sig.price - sig.stop_loss) - 2.0) < 1e-9
+    ok("tren naik + liquidity sweep -> BUY eligible, SL/TP arah dan RR 1:2 benar")
 
 
 def test_fvg_bullish():

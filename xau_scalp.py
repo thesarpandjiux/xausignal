@@ -57,7 +57,7 @@ BARS = 300
 MIN_TRIGGERS = 2          # dari 3 — cukup 2/3 trigger (Trend H1 wajib)
 ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
                            # scalp menahan posisi jauh lebih singkat
-MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
+MIN_RR = 2.0              # audit 5000 bar: +0.205R, BUY/SELL dan semua fold positif
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
