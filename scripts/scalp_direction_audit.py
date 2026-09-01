@@ -16,6 +16,7 @@ import xau_signal as xs
 _os = __import__("os")
 CACHE = Path(_os.environ.get("SCALP_AUDIT_CACHE", "/tmp/scalpcalib/cache"))
 STRUCTURE_LOOKBACK = int(_os.environ.get("SCALP_STRUCTURE_LOOKBACK", "20"))
+MIN_BREAK_ATR = float(_os.environ.get("SCALP_MIN_BREAK_ATR", "0"))
 
 
 def load(tf):
@@ -78,7 +79,10 @@ def direction_struct(h1, m15):
     range_high = float(history.max())
     range_low = float(history.min())
     px = float(c.iloc[-1])
-    direction = 1 if px > range_high and direction_m15(m15) >= 0 else -1 if px < range_low and direction_m15(m15) <= 0 else 0
+    atr_m15 = float(xs.atr(m15).iloc[-1])
+    buy_break = px > range_high and (px - range_high) >= MIN_BREAK_ATR * atr_m15
+    sell_break = px < range_low and (range_low - px) >= MIN_BREAK_ATR * atr_m15
+    direction = 1 if buy_break and direction_m15(m15) >= 0 else -1 if sell_break and direction_m15(m15) <= 0 else 0
     extreme = h1_extreme(h1)
     return 0 if extreme and direction and direction != extreme else direction
 
@@ -170,6 +174,7 @@ def main():
     m5 = load("5m")
     print(f"bar: h1={len(h1)} m15={len(m15)} m5={len(m5)}")
     print(f"structure_lookback={STRUCTURE_LOOKBACK}")
+    print(f"min_break_atr={MIN_BREAK_ATR}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),

@@ -7,6 +7,10 @@ on:
         description: "Jumlah closed candle M15 untuk range structure break"
         required: false
         default: "20"
+      min_break_atr:
+        description: "Minimum jarak break dalam ATR M15"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -49,6 +53,7 @@ jobs:
         env:
           SCALP_AUDIT_CACHE: /tmp/scalp5000
           SCALP_STRUCTURE_LOOKBACK: ${{ inputs.structure_lookback || '20' }}
+          SCALP_MIN_BREAK_ATR: ${{ inputs.min_break_atr || '0' }}
         shell: bash
         run: |
           set -o pipefail
