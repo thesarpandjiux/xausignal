@@ -11,6 +11,14 @@ on:
         description: "Minimum jarak break dalam ATR M15"
         required: false
         default: "0"
+      momentum_mode:
+        description: "baseline atau rsi_extreme_macd"
+        required: false
+        default: "baseline"
+      rr:
+        description: "Risk reward TP1"
+        required: false
+        default: "1.2"
 
 permissions:
   contents: read
@@ -54,6 +62,8 @@ jobs:
           SCALP_AUDIT_CACHE: /tmp/scalp5000
           SCALP_STRUCTURE_LOOKBACK: ${{ inputs.structure_lookback || '20' }}
           SCALP_MIN_BREAK_ATR: ${{ inputs.min_break_atr || '0' }}
+          SCALP_MOMENTUM_MODE: ${{ inputs.momentum_mode || 'baseline' }}
+          SCALP_AUDIT_RR: ${{ inputs.rr || '1.2' }}
         shell: bash
         run: |
           set -o pipefail

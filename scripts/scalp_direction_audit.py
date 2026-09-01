@@ -17,6 +17,8 @@ _os = __import__("os")
 CACHE = Path(_os.environ.get("SCALP_AUDIT_CACHE", "/tmp/scalpcalib/cache"))
 STRUCTURE_LOOKBACK = int(_os.environ.get("SCALP_STRUCTURE_LOOKBACK", "20"))
 MIN_BREAK_ATR = float(_os.environ.get("SCALP_MIN_BREAK_ATR", "0"))
+MOMENTUM_MODE = _os.environ.get("SCALP_MOMENTUM_MODE", "baseline")
+AUDIT_RR = float(_os.environ.get("SCALP_AUDIT_RR", "1.2"))
 
 
 def load(tf):
@@ -87,6 +89,16 @@ def direction_struct(h1, m15):
     return 0 if extreme and direction and direction != extreme else direction
 
 
+def momentum_passed(m15, direction):
+    if MOMENTUM_MODE == "rsi_extreme_macd":
+        c = m15["close"]
+        rsi = float(xs.rsi(c).iloc[-1])
+        _, _, hist = xs.macd(c)
+        macd_up = float(hist.iloc[-1]) > float(hist.iloc[-4])
+        return (rsi < 30 and macd_up) if direction > 0 else (rsi > 80 and not macd_up)
+    return sc.momentum_m15(m15, direction).passed
+
+
 def run(h1, m15, m5, direction_fn, horizon=12):
     rows = []
     last_by_direction = {}
@@ -105,18 +117,18 @@ def run(h1, m15, m5, direction_fn, horizon=12):
             continue
         m5s = m5.iloc[:i + 1]
         trend_direction, trend_trigger = sc.trend_h1(h1s)
-        momentum = sc.momentum_m15(m15s, direction)
+        momentum_ok = momentum_passed(m15s, direction)
         sweep = sc.liquidity_sweep(m5s, direction)
         # H1 tetap wajib sebagai regime gate, tetapi tidak wajib searah kecuali baseline.
         regime_ok = trend_direction != 0
-        n = int(regime_ok) + int(momentum.passed) + int(sweep.passed)
+        n = int(regime_ok) + int(momentum_ok) + int(sweep.passed)
         if n < sc.MIN_TRIGGERS:
             continue
         px = float(m5s["close"].iloc[-1])
         a = float(xs.atr(m5s).iloc[-1])
         sl = px - direction * sc.ATR_SL_MULT * a
         risk = abs(px - sl)
-        tp1 = px + direction * sc.MIN_RR * risk
+        tp1 = px + direction * AUDIT_RR * risk
         dirn = "BUY" if direction > 0 else "SELL"
         if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
             continue
@@ -140,7 +152,7 @@ def run(h1, m15, m5, direction_fn, horizon=12):
         if won is None:
             continue
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
-                     "n": n, "won": won, "r": 1.2 if won else -1.0})
+                     "n": n, "won": won, "r": AUDIT_RR if won else -1.0})
     return pd.DataFrame(rows)
 
 
@@ -175,6 +187,8 @@ def main():
     print(f"bar: h1={len(h1)} m15={len(m15)} m5={len(m5)}")
     print(f"structure_lookback={STRUCTURE_LOOKBACK}")
     print(f"min_break_atr={MIN_BREAK_ATR}")
+    print(f"momentum_mode={MOMENTUM_MODE}")
+    print(f"rr={AUDIT_RR}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
