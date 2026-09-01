@@ -46,14 +46,17 @@ def ok(label):
 
 
 def test_structure_direction_is_symmetric():
-    idx15 = pd.date_range("2026-01-01", periods=80, freq="15min", tz="UTC")
-    base = np.linspace(100, 104, 80)
+    idx15 = pd.date_range("2026-01-01", periods=240, freq="15min", tz="UTC")
+    base = np.linspace(100, 104, 240)
     up = pd.DataFrame({"open": base, "high": base + 1, "low": base - 1,
                        "close": base}, index=idx15)
-    up.iloc[-1, up.columns.get_loc("close")] = float(up["close"].iloc[-21:-1].max()) + 2
+    up.iloc[-1, up.columns.get_loc("close")] = float(up["close"].iloc[-201:-1].max()) + 2
+    near = up.copy()
+    near.iloc[-150, near.columns.get_loc("close")] = 110
+    near.iloc[-1, near.columns.get_loc("close")] = 105
     down = up.copy()
-    down["close"] = np.linspace(104, 100, 80)
-    down.iloc[-1, down.columns.get_loc("close")] = float(down["close"].iloc[-21:-1].min()) - 2
+    down["close"] = np.linspace(104, 100, 240)
+    down.iloc[-1, down.columns.get_loc("close")] = float(down["close"].iloc[-201:-1].min()) - 2
 
     idx1h = pd.date_range("2025-12-20", periods=200, freq="1h", tz="UTC")
     flat = np.full(200, 102.0)
@@ -61,7 +64,8 @@ def test_structure_direction_is_symmetric():
                        "close": flat}, index=idx1h)
     assert sc.structure_direction(h1, up)[0] == 1
     assert sc.structure_direction(h1, down)[0] == -1
-    ok("structure break menilai BUY dan SELL secara simetris")
+    assert sc.structure_direction(h1, near)[0] == 0, "high 200 candle belum ditembus"
+    ok("structure break 200 candle menilai BUY dan SELL secara simetris")
 
 
 def test_trend_and_full_pipeline():
@@ -77,8 +81,8 @@ def test_trend_and_full_pipeline():
         return pd.DataFrame({"open": open_, "high": high, "low": low, "close": close}, index=idx)
 
     h1 = make_df(200, "1h", trend_per_bar=1.5, noise=2.0)
-    m15 = make_df(200, "15min", trend_per_bar=0.4, noise=1.0)
-    breakout = float(m15["close"].iloc[-21:-1].max()) + 3.0
+    m15 = make_df(240, "15min", trend_per_bar=0.4, noise=1.0)
+    breakout = float(m15["close"].iloc[-201:-1].max()) + 3.0
     m15.iloc[-1, m15.columns.get_loc("close")] = breakout
     m15.iloc[-1, m15.columns.get_loc("high")] = breakout + 0.5
     m5 = make_df(200, "5min", trend_per_bar=0.15, noise=0.5)

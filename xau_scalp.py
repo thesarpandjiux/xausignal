@@ -58,6 +58,7 @@ MIN_TRIGGERS = 2          # dari 3 — cukup 2/3 trigger (Trend H1 wajib)
 ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
                            # scalp menahan posisi jauh lebih singkat
 MIN_RR = 1.2              # target lebih dekat, wajar untuk scalp
+STRUCTURE_LOOKBACK = 200   # 50 jam M15; breakout harus menembus range besar
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
@@ -107,14 +108,17 @@ def trend_h1(h1: pd.DataFrame) -> tuple[int, Trigger]:
 
 
 def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame) -> tuple[int, Trigger]:
-    """Arah dari break close M15 atas/bawah 20 candle; H1 hanya veto ekstrem."""
+    """Arah dari break close M15 atas/bawah 200 candle; H1 hanya veto ekstrem."""
     c = m15["close"]
-    hi20 = float(c.iloc[-21:-1].max())
-    lo20 = float(c.iloc[-21:-1].min())
+    history = c.iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    if len(history) < STRUCTURE_LOOKBACK:
+        return 0, Trigger("Structure Break M15", False, "histori M15 <200 candle")
+    range_high = float(history.max())
+    range_low = float(history.min())
     px = float(c.iloc[-1])
-    m15_dir = 1 if px > hi20 else -1 if px < lo20 else 0
+    m15_dir = 1 if px > range_high else -1 if px < range_low else 0
     if not m15_dir:
-        return 0, Trigger("Structure Break M15", False, "belum break range 20 candle")
+        return 0, Trigger("Structure Break M15", False, "belum break range 200 candle")
 
     h1c = h1["close"]
     e20, e50 = xs.ema(h1c, 20), xs.ema(h1c, 50)
@@ -126,7 +130,7 @@ def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame) -> tuple[int, Trigg
                           f"break diveto tren H1 ekstrem ({gap:+.2f} ATR)")
     side = "atas" if m15_dir > 0 else "bawah"
     return m15_dir, Trigger("Structure Break M15", True,
-                            f"close break {side} range 20 candle")
+                            f"close break {side} range 200 candle")
 
 
 def momentum_m15(m15: pd.DataFrame, direction: int) -> Trigger:
@@ -238,8 +242,8 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
     risk = abs(px - sl)
     tp1 = px + direction * MIN_RR * risk
     tp2 = px + direction * (MIN_RR + 1) * risk
-    level = float(m15["close"].iloc[-21:-1].max() if direction > 0
-                  else m15["close"].iloc[-21:-1].min())
+    history = m15["close"].iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    level = float(history.max() if direction > 0 else history.min())
     candle = pd.Timestamp(m15.index[-1]).strftime("%Y%m%dT%H%M")
     setup_id = f"{dirn}:{candle}:{level:.2f}"
 
