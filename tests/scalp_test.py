@@ -86,7 +86,11 @@ def test_trend_and_full_pipeline():
     m5.iloc[-2, m5.columns.get_loc("low")] = swing_low - 1.0
     m5.iloc[-2, m5.columns.get_loc("close")] = swing_low + 0.5
 
+    before = sc.build_scalp_signal(h1, m15, m5, datetime.now(timezone.utc), data_source="test")
+    telemetry = sc.gate_telemetry(h1, m15, m5)
     sig = sc.build_scalp_signal(h1, m15, m5, datetime.now(timezone.utc), data_source="test")
+    assert sig.direction == before.direction and sig.n_triggers == before.n_triggers
+    assert "structure=" in telemetry and "momentum_buy=" in telemetry and "sweep_sell=" in telemetry
     assert sig.direction == "BUY", f"expected BUY, got {sig.direction}"
     assert sig.n_triggers >= sc.MIN_TRIGGERS
     names = {t.name for t in sig.triggers if t.passed}

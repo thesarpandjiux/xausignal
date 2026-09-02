@@ -206,6 +206,22 @@ def liquidity_sweep(m5: pd.DataFrame, direction: int) -> Trigger:
 
 # ─────────────────────────────── Perakit sinyal ──────────────────────────────
 
+def gate_telemetry(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame) -> str:
+    """Ringkasan read-only semua gate; tidak memengaruhi keputusan sinyal."""
+    direction, structure = structure_direction(h1, m15)
+    buy_momentum = momentum_m15(m15, 1)
+    sell_momentum = momentum_m15(m15, -1)
+    buy_sweep = liquidity_sweep(m5, 1)
+    sell_sweep = liquidity_sweep(m5, -1)
+    h1_direction, _ = trend_h1(h1)
+    return (f"GATES structure={structure.passed} direction={direction:+d} "
+            f"h1={h1_direction:+d} momentum_buy={buy_momentum.passed} "
+            f"momentum_sell={sell_momentum.passed} sweep_buy={buy_sweep.passed} "
+            f"sweep_sell={sell_sweep.passed} | {structure.note}; "
+            f"BUY[{buy_momentum.note}; {buy_sweep.note}] "
+            f"SELL[{sell_momentum.note}; {sell_sweep.note}]")
+
+
 def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                         now: datetime, data_source: str = "") -> ScalpSignal:
     direction, trend_trig = structure_direction(h1, m15)
@@ -497,6 +513,7 @@ def main() -> int:
         print("Pasar tutup.")
         return 0
 
+    print(gate_telemetry(h1, m15, m5))
     sig = build_scalp_signal(h1, m15, m5, now, data_source=src)
     msg = format_message(sig)
     state = load_state()
