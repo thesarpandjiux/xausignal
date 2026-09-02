@@ -315,6 +315,64 @@ def session_stats(df):
             print(f"    {direction}: n={len(side)} exp_r={side['r'].mean():+.3f}")
 
 
+def direction_early_m5(h1, m15, m5):
+    """Early momentum: M15 RSI+MACD searah dan M5 break 6-candle; H1 ekstrem memveto."""
+    if len(m5) < 40 or len(m15) < 20:
+        return 0
+    extreme = h1_extreme(h1)
+    buy = (momentum_passed(m15, 1) and not extreme == -1
+           and float(m5["close"].iloc[-1]) > float(m5["high"].iloc[-7:-1].max()))
+    sell = (momentum_passed(m15, -1) and not extreme == 1
+            and float(m5["close"].iloc[-1]) < float(m5["low"].iloc[-7:-1].min()))
+    return 1 if buy else -1 if sell else 0
+
+
+def run_early(h1, m15, m5, horizon=HORIZON_BARS):
+    """Early momentum memakai level M5; dedup bila level maju 0.75 ATR M15."""
+    rows, last_by_direction, active_by_direction = [], {}, {}
+    for i in range(120, len(m5) - horizon):
+        ts = m5.index[i] + pd.Timedelta(minutes=5)
+        h1s = h1[h1.index + pd.Timedelta(hours=1) <= ts]
+        m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
+        m5s = m5.iloc[:i + 1]
+        if len(h1s) < 60 or len(m15s) < 60:
+            continue
+        direction = direction_early_m5(h1s, m15s, m5s)
+        if not direction:
+            continue
+        dirn = "BUY" if direction > 0 else "SELL"
+        level = float(m5s["high"].iloc[-7:-1].max() if direction > 0
+                      else m5s["low"].iloc[-7:-1].min())
+        active = active_by_direction.get(dirn)
+        if active is not None:
+            atr_m15 = float(xs.atr(m15s).iloc[-1])
+            advanced = (level >= active + 0.75 * atr_m15 if direction > 0
+                        else level <= active - 0.75 * atr_m15)
+            if not advanced:
+                continue
+        if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
+            continue
+        last_by_direction[dirn] = ts
+        active_by_direction[dirn] = level
+        px = float(m5s["close"].iloc[-1])
+        a = float(xs.atr(m5s).iloc[-1])
+        sl = px - direction * sc.ATR_SL_MULT * a
+        tp = px + direction * AUDIT_RR * abs(px - sl)
+        won = None
+        for _, bar in m5.iloc[i + 1:i + 1 + horizon].iterrows():
+            if direction > 0:
+                if bar["low"] <= sl: won = False; break
+                if bar["high"] >= tp: won = True; break
+            else:
+                if bar["high"] >= sl: won = False; break
+                if bar["low"] <= tp: won = True; break
+        outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        rows.append({"t": ts, "dir": dirn, "grade": "EARLY", "n": 2,
+                     "won": won, "outcome": outcome,
+                     "r": 0.0 if won is None else AUDIT_RR if won else -1.0})
+    return pd.DataFrame(rows)
+
+
 def stats(df, name):
     if df.empty:
         print(f"{name}: tidak ada sinyal")
@@ -420,6 +478,7 @@ def main():
               setup_dedup=CONTINUATION_ATR),
           f"struct_break_close_wick_{MAX_CLOSE_WICK:g}")
     stats(run_retest(h1, m15, m5), "struct_break_retest_30m")
+    stats(run_early(h1, m15, m5), "early_momentum_m5")
 
 
 if __name__ == "__main__":
