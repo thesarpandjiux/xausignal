@@ -371,6 +371,9 @@ def main():
     production = run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR)
     stats(production, f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
     session_stats(production)
+    sessions = production["t"].map(session_name)
+    stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
+          "production_without_asia_sell")
     stats(run(h1, m15, m5, direction_struct_body, setup_dedup=CONTINUATION_ATR),
           f"struct_break_body_{MIN_BODY_ATR:g}atr")
     stats(run(h1, m15, m5, direction_struct_close_location,
