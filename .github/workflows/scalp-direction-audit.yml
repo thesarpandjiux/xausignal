@@ -27,6 +27,10 @@ on:
         description: "Kemajuan level minimum agar setup continuation dianggap baru"
         required: false
         default: "0.5"
+      min_body_atr:
+        description: "Body minimum candle breakout dalam ATR M15"
+        required: false
+        default: "0.3"
 
 permissions:
   contents: read
@@ -74,6 +78,7 @@ jobs:
           SCALP_AUDIT_RR: ${{ inputs.rr || '1.2' }}
           SCALP_HORIZON_BARS: ${{ inputs.horizon_bars || '12' }}
           SCALP_CONTINUATION_ATR: ${{ inputs.continuation_atr || '0.5' }}
+          SCALP_MIN_BODY_ATR: ${{ inputs.min_body_atr || '0.3' }}
         shell: bash
         run: |
           set -o pipefail

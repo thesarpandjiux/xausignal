@@ -21,6 +21,7 @@ MOMENTUM_MODE = _os.environ.get("SCALP_MOMENTUM_MODE", "baseline")
 AUDIT_RR = float(_os.environ.get("SCALP_AUDIT_RR", "1.2"))
 HORIZON_BARS = int(_os.environ.get("SCALP_HORIZON_BARS", "12"))
 CONTINUATION_ATR = float(_os.environ.get("SCALP_CONTINUATION_ATR", "0.5"))
+MIN_BODY_ATR = float(_os.environ.get("SCALP_MIN_BODY_ATR", "0.3"))
 
 
 def load(tf):
@@ -102,6 +103,15 @@ def direction_pullback(h1, m15):
     resumed = (c.iloc[-1] > previous["high"] if direction > 0
                else c.iloc[-1] < previous["low"])
     return direction if pullback and resumed else 0
+
+
+def direction_struct_body(h1, m15):
+    direction = direction_struct(h1, m15)
+    if not direction:
+        return 0
+    body = abs(float(m15["close"].iloc[-1]) - float(m15["open"].iloc[-1]))
+    atr_m15 = float(xs.atr(m15).iloc[-1])
+    return direction if atr_m15 and body >= MIN_BODY_ATR * atr_m15 else 0
 
 
 def momentum_passed(m15, direction):
@@ -249,6 +259,7 @@ def main():
     print(f"rr={AUDIT_RR}")
     print(f"horizon_bars={HORIZON_BARS}")
     print(f"continuation_atr={CONTINUATION_ATR}")
+    print(f"min_body_atr={MIN_BODY_ATR}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
@@ -263,6 +274,8 @@ def main():
     stats(run(h1, m15, m5, fn, setup_dedup=float("inf")), "struct_break_strict_dedup")
     stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR),
           f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
+    stats(run(h1, m15, m5, direction_struct_body, setup_dedup=CONTINUATION_ATR),
+          f"struct_break_body_{MIN_BODY_ATR:g}atr")
 
 
 if __name__ == "__main__":
