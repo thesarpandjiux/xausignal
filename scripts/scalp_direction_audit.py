@@ -215,6 +215,61 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None):
     return pd.DataFrame(rows)
 
 
+def run_retest(h1, m15, m5, horizon=HORIZON_BARS, wait_bars=6):
+    rows, pending, last_by_direction = [], None, {}
+    seen_m15 = None
+    for i in range(120, len(m5) - horizon):
+        ts = m5.index[i] + pd.Timedelta(minutes=5)
+        h1s = h1[h1.index + pd.Timedelta(hours=1) <= ts]
+        m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
+        if len(h1s) < 60 or len(m15s) < 60:
+            continue
+        m15_stamp = m15s.index[-1]
+        if m15_stamp != seen_m15:
+            seen_m15 = m15_stamp
+            direction = direction_struct(h1s, m15s)
+            if direction:
+                history = m15s["close"].iloc[-STRUCTURE_LOOKBACK - 1:-1]
+                level = float(history.max() if direction > 0 else history.min())
+                pending = {"direction": direction, "level": level,
+                           "created": i, "expires": i + wait_bars}
+        if not pending:
+            continue
+        if i <= pending["created"]:
+            continue
+        if i > pending["expires"]:
+            pending = None
+            continue
+        direction, level = pending["direction"], pending["level"]
+        bar = m5.iloc[i]
+        retest = (bar["low"] <= level < bar["close"] if direction > 0
+                  else bar["high"] >= level > bar["close"])
+        if not retest or not momentum_passed(m15s, direction):
+            continue
+        dirn = "BUY" if direction > 0 else "SELL"
+        if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
+            continue
+        last_by_direction[dirn] = ts
+        px = float(bar["close"])
+        a = float(xs.atr(m5.iloc[:i + 1]).iloc[-1])
+        sl = px - direction * sc.ATR_SL_MULT * a
+        tp = px + direction * AUDIT_RR * abs(px - sl)
+        won = None
+        for _, future in m5.iloc[i + 1:i + 1 + horizon].iterrows():
+            if direction > 0:
+                if future["low"] <= sl: won = False; break
+                if future["high"] >= tp: won = True; break
+            else:
+                if future["high"] >= sl: won = False; break
+                if future["low"] <= tp: won = True; break
+        outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        rows.append({"t": ts, "dir": dirn, "grade": "RETEST", "n": 2,
+                     "won": won, "outcome": outcome,
+                     "r": 0.0 if won is None else AUDIT_RR if won else -1.0})
+        pending = None
+    return pd.DataFrame(rows)
+
+
 def stats(df, name):
     if df.empty:
         print(f"{name}: tidak ada sinyal")
@@ -294,6 +349,7 @@ def main():
     stats(run(h1, m15, m5, direction_struct_close_location,
               setup_dedup=CONTINUATION_ATR),
           f"struct_break_close_wick_{MAX_CLOSE_WICK:g}")
+    stats(run_retest(h1, m15, m5), "struct_break_retest_30m")
 
 
 if __name__ == "__main__":
