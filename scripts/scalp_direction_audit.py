@@ -102,9 +102,10 @@ def momentum_passed(m15, direction):
     return sc.momentum_m15(m15, direction).passed
 
 
-def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS):
+def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None):
     rows = []
     last_by_direction = {}
+    active_by_direction = {}
     for i in range(120, len(m5) - horizon):
         # Keputusan dibuat setelah candle M5 kandidat tutup, bukan saat mulai.
         ts = m5.index[i] + pd.Timedelta(minutes=5)
@@ -115,9 +116,25 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS):
         m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
         if len(h1s) < 60 or len(m15s) < 60:
             continue
+        close = float(m15s["close"].iloc[-1])
+        for active_dir, active_level in list(active_by_direction.items()):
+            inside = close <= active_level if active_dir == "BUY" else close >= active_level
+            if inside:
+                active_by_direction.pop(active_dir)
         direction = direction_fn(h1s, m15s)
         if direction == 0:
             continue
+        dirn = "BUY" if direction > 0 else "SELL"
+        history = m15s["close"].iloc[-STRUCTURE_LOOKBACK - 1:-1]
+        level = float(history.max() if direction > 0 else history.min())
+        active = active_by_direction.get(dirn)
+        if setup_dedup is not None and active is not None:
+            atr_m15 = float(xs.atr(m15s).iloc[-1])
+            advanced = False if np.isinf(setup_dedup) else (
+                level >= active + setup_dedup * atr_m15 if direction > 0
+                else level <= active - setup_dedup * atr_m15)
+            if not advanced:
+                continue
         m5s = m5.iloc[:i + 1]
         trend_direction, trend_trigger = sc.trend_h1(h1s)
         momentum_ok = momentum_passed(m15s, direction)
@@ -132,10 +149,11 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS):
         sl = px - direction * sc.ATR_SL_MULT * a
         risk = abs(px - sl)
         tp1 = px + direction * AUDIT_RR * risk
-        dirn = "BUY" if direction > 0 else "SELL"
         if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
             continue
         last_by_direction[dirn] = ts
+        if setup_dedup is not None:
+            active_by_direction[dirn] = level
         won = None
         for _, bar in m5.iloc[i + 1:i + 1 + horizon].iterrows():
             if dirn == "BUY":
@@ -207,6 +225,9 @@ def main():
     for name, fn in variants.items():
         df = run(h1, m15, m5, fn)
         stats(df, name)
+    fn = variants["struct_break"]
+    stats(run(h1, m15, m5, fn, setup_dedup=float("inf")), "struct_break_strict_dedup")
+    stats(run(h1, m15, m5, fn, setup_dedup=0.5), "struct_break_continuation_0.5atr")
 
 
 if __name__ == "__main__":
