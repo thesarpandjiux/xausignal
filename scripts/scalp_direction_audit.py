@@ -480,6 +480,8 @@ def main():
     stats(run(h1, m15, m5, fn, setup_dedup=float("inf")), "struct_break_strict_dedup")
     production = run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR)
     stats(production, f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
+    stats(production[production["grade"] == "A"], "production_grade_a")
+    stats(production[production["grade"] == "B"], "production_grade_b")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
