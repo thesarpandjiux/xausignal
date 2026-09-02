@@ -31,6 +31,10 @@ on:
         description: "Body minimum candle breakout dalam ATR M15"
         required: false
         default: "0.3"
+      max_close_wick:
+        description: "Maksimum wick lawan arah sebagai fraksi range candle"
+        required: false
+        default: "0.25"
 
 permissions:
   contents: read
@@ -79,6 +83,7 @@ jobs:
           SCALP_HORIZON_BARS: ${{ inputs.horizon_bars || '12' }}
           SCALP_CONTINUATION_ATR: ${{ inputs.continuation_atr || '0.5' }}
           SCALP_MIN_BODY_ATR: ${{ inputs.min_body_atr || '0.3' }}
+          SCALP_MAX_CLOSE_WICK: ${{ inputs.max_close_wick || '0.25' }}
         shell: bash
         run: |
           set -o pipefail

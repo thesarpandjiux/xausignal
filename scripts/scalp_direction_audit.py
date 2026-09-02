@@ -22,6 +22,7 @@ AUDIT_RR = float(_os.environ.get("SCALP_AUDIT_RR", "1.2"))
 HORIZON_BARS = int(_os.environ.get("SCALP_HORIZON_BARS", "12"))
 CONTINUATION_ATR = float(_os.environ.get("SCALP_CONTINUATION_ATR", "0.5"))
 MIN_BODY_ATR = float(_os.environ.get("SCALP_MIN_BODY_ATR", "0.3"))
+MAX_CLOSE_WICK = float(_os.environ.get("SCALP_MAX_CLOSE_WICK", "0.25"))
 
 
 def load(tf):
@@ -112,6 +113,19 @@ def direction_struct_body(h1, m15):
     body = abs(float(m15["close"].iloc[-1]) - float(m15["open"].iloc[-1]))
     atr_m15 = float(xs.atr(m15).iloc[-1])
     return direction if atr_m15 and body >= MIN_BODY_ATR * atr_m15 else 0
+
+
+def direction_struct_close_location(h1, m15):
+    direction = direction_struct(h1, m15)
+    if not direction:
+        return 0
+    bar = m15.iloc[-1]
+    spread = float(bar["high"] - bar["low"])
+    if spread <= 0:
+        return 0
+    wrong_wick = (float(bar["high"] - bar["close"]) if direction > 0
+                  else float(bar["close"] - bar["low"]))
+    return direction if wrong_wick / spread <= MAX_CLOSE_WICK else 0
 
 
 def momentum_passed(m15, direction):
@@ -260,6 +274,7 @@ def main():
     print(f"horizon_bars={HORIZON_BARS}")
     print(f"continuation_atr={CONTINUATION_ATR}")
     print(f"min_body_atr={MIN_BODY_ATR}")
+    print(f"max_close_wick={MAX_CLOSE_WICK}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
@@ -276,6 +291,9 @@ def main():
           f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
     stats(run(h1, m15, m5, direction_struct_body, setup_dedup=CONTINUATION_ATR),
           f"struct_break_body_{MIN_BODY_ATR:g}atr")
+    stats(run(h1, m15, m5, direction_struct_close_location,
+              setup_dedup=CONTINUATION_ATR),
+          f"struct_break_close_wick_{MAX_CLOSE_WICK:g}")
 
 
 if __name__ == "__main__":
