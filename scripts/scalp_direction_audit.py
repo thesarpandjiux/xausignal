@@ -91,6 +91,19 @@ def direction_struct(h1, m15):
     return 0 if extreme and direction and direction != extreme else direction
 
 
+def direction_pullback(h1, m15):
+    """Continuation: H1 jelas, tiga close M15 pullback, lalu break candle sebelumnya."""
+    direction = sc.trend_h1(h1)[0]
+    if not direction or len(m15) < 5:
+        return 0
+    c = m15["close"]
+    previous = m15.iloc[-2]
+    pullback = c.iloc[-2] < c.iloc[-4] if direction > 0 else c.iloc[-2] > c.iloc[-4]
+    resumed = (c.iloc[-1] > previous["high"] if direction > 0
+               else c.iloc[-1] < previous["low"])
+    return direction if pullback and resumed else 0
+
+
 def momentum_passed(m15, direction):
     if MOMENTUM_MODE in {"rsi_extreme_macd", "rsi_30_80_macd"}:
         c = m15["close"]
@@ -207,7 +220,25 @@ def stats(df, name):
               f"(min exp={min(e):+.3f}, max={max(e):+.3f})")
 
 
+def self_check_pullback():
+    idx = pd.date_range("2026-01-01", periods=80, freq="1h", tz="UTC")
+    close = np.arange(80, dtype=float) + 100
+    h1 = pd.DataFrame({"open": close, "high": close + 1, "low": close - 1,
+                       "close": close}, index=idx)
+    mi = pd.date_range("2026-01-04", periods=5, freq="15min", tz="UTC")
+    buy = pd.DataFrame({"open": [10, 9, 8, 7, 8], "high": [11, 10, 9, 8, 10],
+                        "low": [9, 8, 7, 6, 7], "close": [10, 9, 8, 7, 9]}, index=mi)
+    assert direction_pullback(h1, buy) == 1
+    sell_h1 = h1.copy()
+    sell_h1[["open", "high", "low", "close"]] = sell_h1[["open", "high", "low", "close"]].iloc[::-1].to_numpy()
+    sell = buy.copy()
+    sell[["open", "high", "low", "close"]] = 20 - sell[["open", "high", "low", "close"]]
+    sell["high"], sell["low"] = 20 - buy["low"], 20 - buy["high"]
+    assert direction_pullback(sell_h1, sell) == -1
+
+
 def main():
+    self_check_pullback()
     h1 = load("1h")
     m15 = load("15m")
     m5 = load("5m")
@@ -223,6 +254,7 @@ def main():
         "m15_dir": lambda h, m: direction_m15(m),
         "m15_h1veto": lambda h, m: direction_m15_with_h1_veto(h, m),
         "struct_break": lambda h, m: direction_struct(h, m),
+        "pullback_continuation": lambda h, m: direction_pullback(h, m),
     }
     for name, fn in variants.items():
         df = run(h1, m15, m5, fn)
