@@ -327,6 +327,114 @@ def session_stats(df):
             print(f"    {direction}: n={len(side)} exp_r={side['r'].mean():+.3f}")
 
 
+def direction_intrabar_struct(m15s, px, m15_full, n_closed):
+    """Structure break intrabar: px (close M5 terakhir) dibandingkan 20 close
+    M15 yang SUDAH tutup sebelum candle berjalan. Memakai data nyata sampai ts,
+    tanpa look-ahead — close parsial candle berjalan = harga live saat ts."""
+    if n_closed < 21:
+        return 0
+    history = m15s["close"].iloc[-20:]
+    hi = float(history.max())
+    lo = float(history.min())
+    if px > hi:
+        return 1
+    if px < lo:
+        return -1
+    return 0
+
+
+def run_intrabar(h1, m15, m5, horizon=HORIZON_BARS, setup_dedup=CONTINUATION_ATR,
+                 min_age_min=5):
+    """Varian timing: sinyal bisa muncul saat candle M15 masih berjalan (tiap
+    close M5), bukan menunggu candle M15 tutup. Tanpa look-ahead: close parsial
+    candle berjalan = harga live; momentum/RSI/MACD dihitung ulang pada deret
+    yang memuat close parsial itu (sama seperti indikator platform realtime)."""
+    rows = []
+    last_by_direction = {}
+    active_by_direction = {}
+    for i in range(120, len(m5) - horizon):
+        ts = m5.index[i] + pd.Timedelta(minutes=5)
+        h1s = h1[h1.index + pd.Timedelta(hours=1) <= ts]
+        m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
+        if len(h1s) < 60 or len(m15s) < 21:
+            continue
+        n_closed = len(m15s)
+        if n_closed >= len(m15):
+            continue  # tidak ada candle berjalan
+        forming_start = m15.index[n_closed]
+        if not (forming_start < ts < forming_start + pd.Timedelta(minutes=15)):
+            continue
+        age = (ts - forming_start).total_seconds() / 60
+        if age < min_age_min:
+            continue
+        px = float(m5["close"].iloc[i])
+        direction = direction_intrabar_struct(m15s, px, m15, n_closed)
+        if direction == 0:
+            continue
+        dirn = "BUY" if direction > 0 else "SELL"
+        level = float(m15s["close"].iloc[-20:].max() if direction > 0
+                      else m15s["close"].iloc[-20:].min())
+        active = active_by_direction.get(dirn)
+        if setup_dedup is not None and active is not None:
+            atr_m15 = float(xs.atr(m15s).iloc[-1])
+            advanced = np.isinf(setup_dedup) or (
+                level >= active + setup_dedup * atr_m15 if direction > 0
+                else level <= active - setup_dedup * atr_m15)
+            if not advanced:
+                continue
+        # deret momentum = close M15 closed + close parsial candle berjalan
+        ext = pd.concat([m15s["close"], pd.Series([px])]).reset_index(drop=True)
+        trend_direction, _ = sc.trend_h1(h1s)
+        momentum_ok = momentum_series_passed(ext, direction)
+        sweep = sc.liquidity_sweep(m5.iloc[:i + 1], direction)
+        regime_ok = trend_direction != 0
+        n = int(regime_ok) + int(momentum_ok) + int(sweep.passed)
+        if n < sc.MIN_TRIGGERS:
+            continue
+        a = float(xs.atr(m5.iloc[:i + 1]).iloc[-1])
+        sl = px - direction * sc.ATR_SL_MULT * a
+        risk = abs(px - sl)
+        tp1 = px + direction * AUDIT_RR * risk
+        if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
+            continue
+        last_by_direction[dirn] = ts
+        if setup_dedup is not None:
+            active_by_direction[dirn] = level
+        won = None
+        for _, bar in m5.iloc[i + 1:i + 1 + horizon].iterrows():
+            if dirn == "BUY":
+                if bar["low"] <= sl:
+                    won = False
+                    break
+                if bar["high"] >= tp1:
+                    won = True
+                    break
+            else:
+                if bar["high"] >= sl:
+                    won = False
+                    break
+                if bar["low"] <= tp1:
+                    won = True
+                    break
+        outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        r_result = 0.0 if won is None else AUDIT_RR if won else -1.0
+        rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
+                     "n": n, "won": won, "outcome": outcome, "r": r_result,
+                     "age_min": age})
+    return pd.DataFrame(rows)
+
+
+def momentum_series_passed(closes: pd.Series, direction: int) -> bool:
+    """Sama dengan momentum_m15, tapi bekerja pada deret close arbitrer
+    (closed + parsial) sehingga indikator mencerminkan nilai realtime."""
+    r = float(xs.rsi(closes).iloc[-1])
+    _, _, hist = xs.macd(closes)
+    h_now, h_prev = float(hist.iloc[-1]), float(hist.iloc[-4])
+    macd_up = h_now > h_prev
+    rsi_ok = (r > 50) if direction > 0 else (r < 50)
+    return rsi_ok and (macd_up if direction > 0 else not macd_up)
+
+
 def direction_early_m5(h1, m15, m5):
     """Early momentum: M15 RSI+MACD searah dan M5 break 6-candle; H1 ekstrem memveto."""
     if len(m5) < 40 or len(m15) < 20:
@@ -482,6 +590,10 @@ def main():
     stats(production, f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
     stats(production[production["grade"] == "A"], "production_grade_a")
     stats(production[production["grade"] == "B"], "production_grade_b")
+    for age_min in (5, 10):
+        df = run_intrabar(h1, m15, m5, setup_dedup=CONTINUATION_ATR,
+                          min_age_min=age_min)
+        stats(df, f"intrabar_struct_age{age_min}")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
