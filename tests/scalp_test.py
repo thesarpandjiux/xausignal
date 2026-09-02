@@ -169,6 +169,28 @@ def test_setup_continuation_after_075_atr():
     ok("continuation BUY/SELL lolos setelah level maju minimal 0.75 ATR M15")
 
 
+def test_shadow_logger_deduplicates_without_marking_sent():
+    import csv
+    import tempfile
+    old_base, old_log = sc.BASE, sc.SHADOW_LOG_FILE
+    try:
+        sc.BASE = Path(tempfile.mkdtemp())
+        sc.SHADOW_LOG_FILE = sc.BASE / "signals_shadow.csv"
+        now = datetime.now(timezone.utc)
+        sig = sc.ScalpSignal(time=now, direction="BUY", grade="B", n_triggers=2,
+                             price=100, stop_loss=99, targets=[102, 103], rr=[2, 3],
+                             setup_id="BUY:test:100", data_source="twelvedata")
+        sc.log_shadow_signal(sig)
+        sc.log_shadow_signal(sig)
+        with sc.SHADOW_LOG_FILE.open() as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 1 and rows[0]["sent"] == "False"
+        assert rows[0]["trigger"] == "shadow"
+        ok("shadow setup dicatat sekali tanpa menandai Telegram terkirim")
+    finally:
+        sc.BASE, sc.SHADOW_LOG_FILE = old_base, old_log
+
+
 def test_backtest_returns_calibration_buckets():
     rng = np.random.default_rng(123)
 
@@ -212,6 +234,7 @@ if __name__ == "__main__":
     test_order_block_positive_and_negative()
     test_setup_dedup_persists_until_range_reset()
     test_setup_continuation_after_075_atr()
+    test_shadow_logger_deduplicates_without_marking_sent()
     test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
     print("\n" + "─" * 50)

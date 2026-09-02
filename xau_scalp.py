@@ -63,6 +63,7 @@ BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
 CALIB_FILE = BASE / "scalp_calibration.json"
 LOG_FILE = BASE / "signals.csv"
+SHADOW_LOG_FILE = BASE / "signals_shadow.csv"
 
 
 @dataclass
@@ -379,6 +380,32 @@ def log_signal(sig: ScalpSignal, sent: bool) -> None:
         w.writerow(row)
 
 
+def log_shadow_signal(sig: ScalpSignal) -> None:
+    """Catat setup eligible sebelum dedup/cooldown; tidak kirim Telegram."""
+    if sig.direction == "NO-TRADE":
+        return
+    BASE.mkdir(parents=True, exist_ok=True)
+    new = not SHADOW_LOG_FILE.exists()
+    shadow_id = f"SH-{sig.setup_id}"
+    if not new:
+        with SHADOW_LOG_FILE.open(newline="") as f:
+            if shadow_id in {r["id"] for r in csv.DictReader(f)}:
+                return
+    tps = (sig.targets + [None, None, None])[:3]
+    row = dict(zip(xs.SIGNAL_COLS, [
+        sig.time.isoformat(), shadow_id, sig.direction, sig.grade,
+        sig.n_triggers, sig.n_triggers, 0, round(sig.price, 2),
+        round(sig.price, 2), round(sig.stop_loss, 2),
+        *[round(t, 2) if t is not None else "" for t in tps],
+        round(sig.rr[0], 2), sig.n_triggers, False,
+        sig.data_source.split(" (")[0], "shadow"]))
+    with SHADOW_LOG_FILE.open("a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=xs.SIGNAL_COLS)
+        if new:
+            w.writeheader()
+        w.writerow(row)
+
+
 def reset_setup_if_inside_range(state: dict, m15: pd.DataFrame) -> bool:
     active = state.get("active_setup")
     if not active:
@@ -474,6 +501,8 @@ def main() -> int:
     msg = format_message(sig)
     state = load_state()
     setup_reset = reset_setup_if_inside_range(state, m15)
+    if not args.dry_run:
+        log_shadow_signal(sig)
     ok, reason = should_send(sig, state, now)
 
     if args.dry_run:

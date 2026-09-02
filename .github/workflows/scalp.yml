@@ -64,6 +64,18 @@ jobs:
           JOURNAL_HORIZON_H: "2"
         run: python journal.py update
 
+      - name: Nilai shadow setup scalp
+        continue-on-error: true
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          XAU_HOME: /tmp/botscalp
+          JOURNAL_INTERVAL: "5m"
+          JOURNAL_HORIZON_H: "2"
+          JOURNAL_SIGNALS_FILE: signals_shadow.csv
+          JOURNAL_OUTPUT_FILE: journal_shadow.csv
+          JOURNAL_INCLUDE_UNSENT: "true"
+        run: python journal.py update
+
       - name: Simpan state
         if: always()
         env:

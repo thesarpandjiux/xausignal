@@ -29,10 +29,11 @@ import pandas as pd
 import datafeed  # noqa: F401  — memuat .env
 
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
-SIGNALS = BASE / "signals.csv"
-JOURNAL = BASE / "journal.csv"
+SIGNALS = BASE / os.getenv("JOURNAL_SIGNALS_FILE", "signals.csv")
+JOURNAL = BASE / os.getenv("JOURNAL_OUTPUT_FILE", "journal.csv")
 HORIZON_H = float(os.getenv("JOURNAL_HORIZON_H", "48"))
 INTERVAL = os.getenv("JOURNAL_INTERVAL", "1h")
+INCLUDE_UNSENT = os.getenv("JOURNAL_INCLUDE_UNSENT", "").lower() in ("1", "true", "yes")
 
 JOURNAL_COLS = ["id", "time", "direction", "grade", "composite", "entry", "sl",
                 "tp1", "rr1", "outcome", "r_result", "closed_at", "note"]
@@ -48,7 +49,9 @@ def load_signals() -> pd.DataFrame:
     # nama sumber data yang sah dan salah terdeteksi sebagai "sumber campuran".
     if "source" in df.columns:
         df["source"] = df["source"].fillna("")
-    df = df[(df["direction"] != "NO-TRADE") & (df["sent"].astype(str) == "True")]
+    df = df[df["direction"] != "NO-TRADE"]
+    if not INCLUDE_UNSENT:
+        df = df[df["sent"].astype(str) == "True"]
     if df.empty:
         return df
     df["time"] = pd.to_datetime(df["time"], utc=True)
