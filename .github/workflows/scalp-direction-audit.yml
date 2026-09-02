@@ -23,6 +23,10 @@ on:
         description: "Horizon evaluasi dalam candle M5"
         required: false
         default: "12"
+      continuation_atr:
+        description: "Kemajuan level minimum agar setup continuation dianggap baru"
+        required: false
+        default: "0.5"
 
 permissions:
   contents: read
@@ -69,6 +73,7 @@ jobs:
           SCALP_MOMENTUM_MODE: ${{ inputs.momentum_mode || 'baseline' }}
           SCALP_AUDIT_RR: ${{ inputs.rr || '1.2' }}
           SCALP_HORIZON_BARS: ${{ inputs.horizon_bars || '12' }}
+          SCALP_CONTINUATION_ATR: ${{ inputs.continuation_atr || '0.5' }}
         shell: bash
         run: |
           set -o pipefail

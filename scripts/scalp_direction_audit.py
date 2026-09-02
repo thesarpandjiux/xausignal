@@ -20,6 +20,7 @@ MIN_BREAK_ATR = float(_os.environ.get("SCALP_MIN_BREAK_ATR", "0"))
 MOMENTUM_MODE = _os.environ.get("SCALP_MOMENTUM_MODE", "baseline")
 AUDIT_RR = float(_os.environ.get("SCALP_AUDIT_RR", "1.2"))
 HORIZON_BARS = int(_os.environ.get("SCALP_HORIZON_BARS", "12"))
+CONTINUATION_ATR = float(_os.environ.get("SCALP_CONTINUATION_ATR", "0.5"))
 
 
 def load(tf):
@@ -216,6 +217,7 @@ def main():
     print(f"momentum_mode={MOMENTUM_MODE}")
     print(f"rr={AUDIT_RR}")
     print(f"horizon_bars={HORIZON_BARS}")
+    print(f"continuation_atr={CONTINUATION_ATR}")
     variants = {
         "baseline_h1_abs": lambda h, m: sc.trend_h1(h)[0],
         "m15_dir": lambda h, m: direction_m15(m),
@@ -227,7 +229,8 @@ def main():
         stats(df, name)
     fn = variants["struct_break"]
     stats(run(h1, m15, m5, fn, setup_dedup=float("inf")), "struct_break_strict_dedup")
-    stats(run(h1, m15, m5, fn, setup_dedup=0.5), "struct_break_continuation_0.5atr")
+    stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR),
+          f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
 
 
 if __name__ == "__main__":
