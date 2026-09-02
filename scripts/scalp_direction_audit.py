@@ -148,14 +148,26 @@ def direction_struct_close_location(h1, m15):
 
 
 def momentum_passed(m15, direction):
-    if MOMENTUM_MODE in {"rsi_extreme_macd", "rsi_30_80_macd"}:
-        c = m15["close"]
-        rsi = float(xs.rsi(c).iloc[-1])
-        _, _, hist = xs.macd(c)
+    c = m15["close"]
+    rsi = float(xs.rsi(c).iloc[-1])
+    _, _, hist = xs.macd(c)
+    if MOMENTUM_MODE == "rsi_extreme_macd":
         macd_up = float(hist.iloc[-1]) > float(hist.iloc[-4])
-        if MOMENTUM_MODE == "rsi_extreme_macd":
-            return (rsi < 30 and macd_up) if direction > 0 else (rsi > 80 and not macd_up)
+        return (rsi < 30 and macd_up) if direction > 0 else (rsi > 80 and not macd_up)
+    if MOMENTUM_MODE == "rsi_30_80_macd":
+        macd_up = float(hist.iloc[-1]) > float(hist.iloc[-4])
         return (rsi > 30 and macd_up) if direction > 0 else (rsi < 80 and not macd_up)
+    if MOMENTUM_MODE == "hist_level":
+        # Momentum hidup: RSI searah DAN histogram MACD masih di sisi yang benar,
+        # tanpa syarat slope 3-candle yang menolak rally melambat.
+        return (rsi > 50 and float(hist.iloc[-1]) > 0) if direction > 0 \
+            else (rsi < 50 and float(hist.iloc[-1]) < 0)
+    if MOMENTUM_MODE == "hist_slope1":
+        up = float(hist.iloc[-1]) > float(hist.iloc[-2])
+        return (rsi > 50 and up) if direction > 0 else (rsi < 50 and not up)
+    if MOMENTUM_MODE == "rsi_strength":
+        # RSI saja, tanpa MACD: ambang lebih tegas dari 50.
+        return rsi > 55 if direction > 0 else rsi < 45
     return sc.momentum_m15(m15, direction).passed
 
 
