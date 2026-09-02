@@ -1,0 +1,2 @@
+time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confirms,sent,source,trigger
+2026-09-02T10:16:27.824620+00:00,SH-SELL:20260902T1000:4308.34,SELL,B,2,2,0,4306.44,4306.44,4309.75,4299.82,4296.51,,2.0,2,False,twelvedata,shadow
