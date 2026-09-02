@@ -106,6 +106,25 @@ def direction_pullback(h1, m15):
     return direction if pullback and resumed else 0
 
 
+def direction_fast_reversal(h1, m15):
+    """Reversal awal: struktur 3-candle berubah + RSI cross 50 + MACD searah."""
+    if len(m15) < 20:
+        return 0
+    trend = sc.trend_h1(h1)[0]
+    c, low, high = m15["close"], m15["low"], m15["high"]
+    r = xs.rsi(c)
+    _, _, hist = xs.macd(c)
+    buy = (trend != 1 and low.iloc[-2] > low.iloc[-3]
+           and c.iloc[-1] > high.iloc[-4:-1].max()
+           and r.iloc[-2] <= 50 < r.iloc[-1]
+           and hist.iloc[-1] > hist.iloc[-2])
+    sell = (trend != -1 and high.iloc[-2] < high.iloc[-3]
+            and c.iloc[-1] < low.iloc[-4:-1].min()
+            and r.iloc[-2] >= 50 > r.iloc[-1]
+            and hist.iloc[-1] < hist.iloc[-2])
+    return 1 if buy else -1 if sell else 0
+
+
 def direction_struct_body(h1, m15):
     direction = direction_struct(h1, m15)
     if not direction:
@@ -325,6 +344,25 @@ def stats(df, name):
               f"(min exp={min(e):+.3f}, max={max(e):+.3f})")
 
 
+def self_check_fast_reversal():
+    rng = np.random.default_rng(0)
+    close = 100 + np.cumsum(rng.normal(-0.1, 1, 40))
+    close[-3:] = [close[-4] - 2, close[-4] - 1, close[-4] + 4]
+    idx = pd.date_range("2026-01-01", periods=40, freq="15min", tz="UTC")
+    m15 = pd.DataFrame({"open": np.r_[close[0], close[:-1]], "high": close + .5,
+                        "low": close - .5, "close": close}, index=idx)
+    hi = pd.date_range("2025-12-20", periods=100, freq="1h", tz="UTC")
+    hc = np.arange(100, 0, -1, dtype=float)
+    h1 = pd.DataFrame({"open": hc, "high": hc + 1, "low": hc - 1,
+                       "close": hc}, index=hi)
+    assert direction_fast_reversal(h1, m15) == 1
+    mirrored = m15.copy()
+    mirrored[["open", "high", "low", "close"]] = -m15[["open", "low", "high", "close"]].to_numpy()
+    mirrored_h1 = h1.copy()
+    mirrored_h1[["open", "high", "low", "close"]] = -h1[["open", "low", "high", "close"]].to_numpy()
+    assert direction_fast_reversal(mirrored_h1, mirrored) == -1
+
+
 def self_check_pullback():
     idx = pd.date_range("2026-01-01", periods=80, freq="1h", tz="UTC")
     close = np.arange(80, dtype=float) + 100
@@ -343,6 +381,7 @@ def self_check_pullback():
 
 
 def main():
+    self_check_fast_reversal()
     self_check_pullback()
     h1 = load("1h")
     m15 = load("15m")
@@ -362,6 +401,7 @@ def main():
         "m15_h1veto": lambda h, m: direction_m15_with_h1_veto(h, m),
         "struct_break": lambda h, m: direction_struct(h, m),
         "pullback_continuation": lambda h, m: direction_pullback(h, m),
+        "fast_reversal": lambda h, m: direction_fast_reversal(h, m),
     }
     for name, fn in variants.items():
         df = run(h1, m15, m5, fn)
