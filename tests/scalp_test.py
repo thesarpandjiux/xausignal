@@ -151,6 +151,24 @@ def test_setup_dedup_persists_until_range_reset():
     ok("setup sama diblokir sampai harga kembali ke dalam range M15")
 
 
+def test_setup_continuation_after_075_atr():
+    now = datetime.now(timezone.utc)
+    state = {"active_setup": {"id": "old", "direction": "SELL", "level": 100},
+             "last": {"time": (now - pd.Timedelta(hours=2)).isoformat(),
+                      "direction": "SELL", "price": 99}}
+    weak = sc.ScalpSignal(time=now, direction="SELL", grade="B", n_triggers=2,
+                          breakout_level=99.3, breakout_atr=1.0)
+    strong = sc.ScalpSignal(time=now, direction="SELL", grade="B", n_triggers=2,
+                            breakout_level=99.25, breakout_atr=1.0)
+    assert not sc.should_send(weak, state, now)[0]
+    assert sc.should_send(strong, state, now)[0]
+
+    state["active_setup"].update(direction="BUY", level=100)
+    strong.direction, strong.breakout_level = "BUY", 100.75
+    assert sc.should_send(strong, state, now)[0]
+    ok("continuation BUY/SELL lolos setelah level maju minimal 0.75 ATR M15")
+
+
 def test_backtest_returns_calibration_buckets():
     rng = np.random.default_rng(123)
 
@@ -193,6 +211,7 @@ if __name__ == "__main__":
     test_fvg_bullish()
     test_order_block_positive_and_negative()
     test_setup_dedup_persists_until_range_reset()
+    test_setup_continuation_after_075_atr()
     test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
     print("\n" + "─" * 50)

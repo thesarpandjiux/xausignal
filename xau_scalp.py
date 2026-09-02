@@ -87,6 +87,7 @@ class ScalpSignal:
     data_source: str = ""
     setup_id: str = ""
     breakout_level: float = 0.0
+    breakout_atr: float = 0.0
 
     def signal_id(self) -> str:
         return f"{self.time:%y%m%d-%H%M}-SC{self.direction[:1]}{self.n_triggers}"
@@ -242,12 +243,13 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                   else m15["close"].iloc[-21:-1].min())
     candle = pd.Timestamp(m15.index[-1]).strftime("%Y%m%dT%H%M")
     setup_id = f"{dirn}:{candle}:{level:.2f}"
+    breakout_atr = float(xs.atr(m15).iloc[-1])
 
     return ScalpSignal(time=now, direction=dirn, grade=grade, n_triggers=n,
                        triggers=triggers, price=px, atr=a, stop_loss=sl,
                        targets=[tp1, tp2], rr=[MIN_RR, MIN_RR + 1],
                        data_source=data_source, setup_id=setup_id,
-                       breakout_level=level)
+                       breakout_level=level, breakout_atr=breakout_atr)
 
 
 # ─────────────────────────────── Backtest ───────────────────────────────────
@@ -395,7 +397,11 @@ def should_send(sig: ScalpSignal, state: dict, now: datetime) -> tuple[bool, str
         return False, f"belum eligible ({sig.n_triggers}/3 trigger)"
     active = state.get("active_setup")
     if active and active.get("direction") == sig.direction:
-        return False, "duplikat setup structure break belum reset"
+        old_level = float(active["level"])
+        advance = (sig.breakout_level - old_level if sig.direction == "BUY"
+                   else old_level - sig.breakout_level)
+        if not sig.breakout_atr or advance < 0.75 * sig.breakout_atr:
+            return False, "duplikat setup; level continuation belum maju 0.75 ATR M15"
     last = state.get("last")
     if last and last.get("direction") == sig.direction:
         age = now - datetime.fromisoformat(last["time"])
