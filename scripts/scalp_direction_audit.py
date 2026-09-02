@@ -270,6 +270,32 @@ def run_retest(h1, m15, m5, horizon=HORIZON_BARS, wait_bars=6):
     return pd.DataFrame(rows)
 
 
+def session_name(ts):
+    hour = ts.hour
+    if 0 <= hour < 7:
+        return "Asia"
+    if 7 <= hour < 13:
+        return "London"
+    if 13 <= hour < 16:
+        return "London-NY overlap"
+    if 16 <= hour < 21:
+        return "New York"
+    return "Off-hours"
+
+
+def session_stats(df):
+    print("session_breakdown:")
+    tagged = df.copy()
+    tagged["session"] = tagged["t"].map(session_name)
+    for session, group in tagged.groupby("session"):
+        outcomes = group["outcome"].value_counts()
+        print(f"  {session}: n={len(group)} win={(group['outcome'] == 'WIN').mean()*100:.1f}% "
+              f"exp_r={group['r'].mean():+.3f} WIN={outcomes.get('WIN', 0)} "
+              f"LOSS={outcomes.get('LOSS', 0)} TIMEOUT={outcomes.get('TIMEOUT', 0)}")
+        for direction, side in group.groupby("dir"):
+            print(f"    {direction}: n={len(side)} exp_r={side['r'].mean():+.3f}")
+
+
 def stats(df, name):
     if df.empty:
         print(f"{name}: tidak ada sinyal")
@@ -342,8 +368,9 @@ def main():
         stats(df, name)
     fn = variants["struct_break"]
     stats(run(h1, m15, m5, fn, setup_dedup=float("inf")), "struct_break_strict_dedup")
-    stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR),
-          f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
+    production = run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR)
+    stats(production, f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
+    session_stats(production)
     stats(run(h1, m15, m5, direction_struct_body, setup_dedup=CONTINUATION_ATR),
           f"struct_break_body_{MIN_BODY_ATR:g}atr")
     stats(run(h1, m15, m5, direction_struct_close_location,
