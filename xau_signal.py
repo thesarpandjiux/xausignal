@@ -219,7 +219,11 @@ def rsi(s: pd.Series, n: int = 14) -> pd.Series:
     d = s.diff()
     g = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
     ls = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
-    return (100 - 100 / (1 + g / ls.replace(0, np.nan))).fillna(50)
+    rs = g / ls
+    out = pd.Series(np.where(ls.abs() < 1e-12, 100.0,
+                             np.where(g.abs() < 1e-12, 0.0,
+                                      100 - 100 / (1 + rs))), index=s.index)
+    return out.fillna(50)
 
 
 def atr(df: pd.DataFrame, n: int = 14) -> pd.Series:

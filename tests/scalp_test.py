@@ -229,6 +229,44 @@ def test_no_trigger_when_trend_choppy():
     ok("harga flat -> direction 0, tidak paksa arah palsu")
 
 
+def test_news_window_phases():
+    from datetime import timedelta
+    now = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
+    ev = lambda m: [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=m),
+                     "title": "Non-Farm Employment Change"}]
+    assert sc.news_window(ev(29), now)[0] == "blackout"      # 29 mnt sebelum
+    assert sc.news_window(ev(-5), now)[0] == "quiet"          # 5 mnt sesudah
+    assert sc.news_window(ev(-20), now)[0] == "aggressive"    # 20 mnt sesudah
+    assert sc.news_window(ev(-120), now)[0] == "none"         # jauh sesudah
+    assert sc.news_window(ev(120), now)[0] == "none"          # jauh sebelum
+    ok("fase news: blackout/quiet/aggressive/none benar")
+
+
+def test_news_alert_due_once():
+    from datetime import timedelta
+    now = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
+    e = {"impact": "High", "country": "USD", "time": now + timedelta(minutes=20),
+         "title": "NFP"}
+    due, ev = sc.news_alert_due([e], now, {})
+    assert due and ev is not None
+    key = f"alerted_{e['time'].isoformat()}"
+    due2, _ = sc.news_alert_due([e], now, {key: True})
+    assert not due2
+    ok("alert countdown news hanya sekali per event")
+
+
+def test_momentum_m5_closed_matches_m15_on_clean_trend():
+    """Pada tren naik yang menguat, momentum M5 closed = BUY."""
+    idx = pd.date_range("2026-01-01", periods=300, freq="5min", tz="utc")
+    x = np.arange(300)
+    close = 4600 + 10 * np.exp(x / 120)               # akselerasi → hist MACD naik
+    m5 = pd.DataFrame({"open": close - 0.2, "high": close + 0.5,
+                       "low": close - 0.5, "close": close}, index=idx)
+    assert sc.momentum_m5_closed(m5, 1).passed
+    assert not sc.momentum_m5_closed(m5, -1).passed
+    ok("momentum M5 closed searah tren menguat, bukan searah turun")
+
+
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
     test_rejects_stale_or_old_m5_feed()
@@ -241,5 +279,8 @@ if __name__ == "__main__":
     test_shadow_logger_deduplicates_without_marking_sent()
     test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
+    test_news_window_phases()
+    test_news_alert_due_once()
+    test_momentum_m5_closed_matches_m15_on_clean_trend()
     print("\n" + "─" * 50)
     print("✅ Semua uji lolos.")

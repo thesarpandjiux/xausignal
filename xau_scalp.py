@@ -59,6 +59,13 @@ ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
                            # scalp menahan posisi jauh lebih singkat
 MIN_RR = 2.0              # audit 5000 bar: +0.205R, BUY/SELL dan semua fold positif
 
+# ── News-aware scalp (NFP & USD high-impact) ──
+NEWS_BLOCK_BEFORE_MIN = 60   # jeda sinyal sebelum rilis (arah belum diketahui)
+NEWS_ALERT_MIN = 30          # kirim alert countdown saat ≤30 mnt
+NEWS_QUIET_AFTER_MIN = 10    # spread chaos setelah rilis; belum boleh entry
+NEWS_AGGR_WINDOW_MIN = 45    # mode ⚡ NEWS: +10..+45 mnt setelah rilis
+NEWS_SL_MULT = 0.6           # SL lebih ketat di mode news (0.8 ATR normal)
+
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
 CALIB_FILE = BASE / "scalp_calibration.json"
@@ -89,6 +96,8 @@ class ScalpSignal:
     setup_id: str = ""
     breakout_level: float = 0.0
     breakout_atr: float = 0.0
+    news_mode: str = "none"
+    news_event: dict | None = None
 
     def signal_id(self) -> str:
         return f"{self.time:%y%m%d-%H%M}-SC{self.direction[:1]}{self.n_triggers}"
@@ -141,6 +150,22 @@ def momentum_m15(m15: pd.DataFrame, direction: int) -> Trigger:
     macd_ok = macd_up if direction > 0 else not macd_up
     ok = rsi_ok and macd_ok
     return Trigger("Momentum M15", ok, f"RSI {r:.0f}, MACD hist {h_now:+.2f}")
+
+
+def momentum_m5_closed(m5: pd.DataFrame, direction: int) -> Trigger:
+    """Momentum ala M15 (RSI >50 + hist MACD naik vs 3 bar) tapi dihitung pada
+    deret close M5 yang SEMUA closed — resolusi 5 mnt. Dipakai khusus mode
+    agresif pasca-news, supaya reaksi tidak nunggu 15 mnt candle M15 tutup.
+    Tanpa look-ahead: seluruh bar sudah closed."""
+    c = m5["close"]
+    r = float(xs.rsi(c).iloc[-1])
+    _, _, hist = xs.macd(c)
+    h_now, h_prev = float(hist.iloc[-1]), float(hist.iloc[-4])
+    macd_up = h_now > h_prev
+    rsi_ok = (r > 50) if direction > 0 else (r < 50)
+    macd_ok = macd_up if direction > 0 else not macd_up
+    ok = rsi_ok and macd_ok
+    return Trigger("Momentum M5 (news)", ok, f"RSI {r:.0f}, MACD hist {h_now:+.2f}")
 
 
 def order_block(m15: pd.DataFrame, direction: int, a: float) -> Trigger:
@@ -223,7 +248,9 @@ def gate_telemetry(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame) -> str
 
 
 def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
-                        now: datetime, data_source: str = "") -> ScalpSignal:
+                        now: datetime, data_source: str = "",
+                        news_mode: str = "none",
+                        news_event: dict | None = None) -> ScalpSignal:
     direction, trend_trig = structure_direction(h1, m15)
     px = float(m5["close"].iloc[-1])
     a = float(xs.atr(m5).iloc[-1])
@@ -233,9 +260,16 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                            n_triggers=0, triggers=[trend_trig],
                            price=px, atr=a, data_source=data_source)
 
+    # Momentum: M15 normal. Fase aggressive → momentum M5 closed (lebih cepat,
+    # semua bar closed, tanpa look-ahead) agar reaksi pasca-news tidak nunggu
+    # candle M15 tutup. Grading tetap 3 trigger.
+    if news_mode == "aggressive":
+        mom_trig = momentum_m5_closed(m5, direction)
+    else:
+        mom_trig = momentum_m15(m15, direction)
     triggers = [
         trend_trig,
-        momentum_m15(m15, direction),
+        mom_trig,
         liquidity_sweep(m5, direction),
     ]
     n = sum(1 for t in triggers if t.passed)
@@ -252,7 +286,9 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                            n_triggers=n, triggers=triggers,
                            price=px, atr=a, data_source=data_source)
 
-    sl = px - direction * ATR_SL_MULT * a
+    # SL: normal 0.8 ATR M5. Mode news-aggressive → 0.6 ATR (lebih ketat).
+    sl_mult = NEWS_SL_MULT if news_mode == "aggressive" else ATR_SL_MULT
+    sl = px - direction * sl_mult * a
     risk = abs(px - sl)
     tp1 = px + direction * MIN_RR * risk
     tp2 = px + direction * (MIN_RR + 1) * risk
@@ -266,7 +302,61 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                        triggers=triggers, price=px, atr=a, stop_loss=sl,
                        targets=[tp1, tp2], rr=[MIN_RR, MIN_RR + 1],
                        data_source=data_source, setup_id=setup_id,
-                       breakout_level=level, breakout_atr=breakout_atr)
+                       breakout_level=level, breakout_atr=breakout_atr,
+                       news_mode=news_mode, news_event=news_event)
+
+
+# ─────────────────────────────── News-aware ──────────────────────────────────
+
+def usd_high_events(events: list[dict], now: datetime,
+                    lookback_h: float = 2.0, lookahead_h: float = 12.0) -> list[dict]:
+    """Event USD/ALL high-impact dalam jendela [now-lookback, now+lookahead]."""
+    out = []
+    for e in events:
+        if e.get("impact") != "High" or e.get("country") not in ("USD", "ALL"):
+            continue
+        d = (e["time"] - now).total_seconds() / 3600
+        if -lookback_h <= d <= lookahead_h:
+            out.append(e)
+    out.sort(key=lambda e: e["time"])
+    return out
+
+
+def news_window(events: list[dict], now: datetime) -> tuple[str, dict | None]:
+    """Klasifikasi fase news untuk event USD high-impact terdekat.
+    Return (fase, event): fase ∈ {blackout, quiet, aggressive, none}.
+    blackout: ≤30 mnt sebelum rilis (arah belum diketahui).
+    quiet:    ≤10 mnt setelah rilis (spread masih chaos, belum boleh entry).
+    aggressive: +10..+45 mnt setelah rilis (mode ⚡ NEWS — entry lebih awal).
+    Tidak ada look-ahead — semua murni waktu rilis dari kalender."""
+    evs = usd_high_events(events, now)
+    if not evs:
+        return "none", None
+    e = evs[0]
+    d_min = (e["time"] - now).total_seconds() / 60
+    if 0 <= d_min <= NEWS_ALERT_MIN:
+        return "blackout", e                       # ≤30 mnt sebelum rilis
+    if -NEWS_QUIET_AFTER_MIN <= d_min < 0:
+        return "quiet", e                          # ≤10 mnt setelah rilis
+    if -NEWS_AGGR_WINDOW_MIN <= d_min < -NEWS_QUIET_AFTER_MIN:
+        return "aggressive", e                     # +10..+45 mnt setelah rilis
+    return "none", None
+
+
+def news_alert_due(events: list[dict], now: datetime,
+                   state: dict) -> tuple[bool, dict | None]:
+    """Alert countdown 30 mnt: kirim SEKALI per event (state 'alerted')."""
+    evs = usd_high_events(events, now, lookahead_h=1.0)
+    if not evs:
+        return False, None
+    e = evs[0]
+    d_min = (e["time"] - now).total_seconds() / 60
+    if not (0 < d_min <= NEWS_ALERT_MIN):
+        return False, None
+    key = f"alerted_{e['time'].isoformat()}"
+    if state.get(key):
+        return False, None
+    return True, e
 
 
 # ─────────────────────────────── Backtest ───────────────────────────────────
@@ -339,8 +429,13 @@ def format_message(sig: ScalpSignal) -> str:
                 ("\n".join(f"✅ {n}" for n in lolos) or "—"))
 
     icon = "🟢" if sig.direction == "BUY" else "🔴"
-    L = [f"{icon} <b>SCALP {sig.direction} XAUUSD</b> · Grade {sig.grade} ({sig.n_triggers}/3)",
+    tag = " ⚡ NEWS" if sig.news_mode == "aggressive" else ""
+    L = [f"{icon} <b>SCALP {sig.direction} XAUUSD{tag}</b> · Grade {sig.grade} ({sig.n_triggers}/3)",
         f"<i>{wib:%d %b %H:%M} WIB · ${sig.price:,.2f}</i>", ""]
+    if sig.news_mode == "aggressive" and sig.news_event:
+        t = sig.news_event["time"].astimezone(timezone(timedelta(hours=7)))
+        L.insert(2, f"⚡ <i>Pasca-news: {xs.esc(sig.news_event['title'])} "
+                    f"({t:%H:%M} WIB) — momentum M5, SL ketat 0.6 ATR</i>")
     L.append(f"Entry: <b>${sig.price:,.2f}</b>")
     L.append(f"SL: <b>${sig.stop_loss:,.2f}</b>")
     for i, tp in enumerate(sig.targets, 1):
@@ -480,13 +575,13 @@ def main() -> int:
     args = ap.parse_args()
 
     now = datetime.now(timezone.utc)
+    import datafeed
     prefer = "dukascopy" if args.backtest else None
     if args.backtest:
         h1, _ = xs.get_ohlc(TF_TREND, prefer=prefer)
         m15, _ = xs.get_ohlc(TF_MOMENTUM, prefer=prefer)
         m5, src = xs.get_ohlc(TF_ENTRY, prefer=prefer)
     else:
-        import datafeed
         feeds = [datafeed.get_ohlc(tf, xs.BARS) for tf in
                  (TF_TREND, TF_MOMENTUM, TF_ENTRY)]
         validate_live_feeds(feeds, now)
@@ -514,13 +609,45 @@ def main() -> int:
         return 0
 
     print(gate_telemetry(h1, m15, m5))
-    sig = build_scalp_signal(h1, m15, m5, now, data_source=src)
-    msg = format_message(sig)
     state = load_state()
+
+    # ── News-aware ────────────────────────────────────────────────────────────
+    news_mode, news_ev = "none", None
+    try:
+        events, trusted = datafeed.get_calendar()
+        if not trusted:
+            print("Kalender tidak tepercaya — perlakukan sebagai blackout.")
+            news_mode, news_ev = "blackout", None
+        else:
+            news_mode, news_ev = news_window(events, now)
+            due, ev = news_alert_due(events, now, state)
+            if due and not args.dry_run and ev:
+                t = ev["time"].astimezone(timezone(timedelta(hours=7)))
+                xs.send_telegram(
+                    f"📅 <b>News countdown {t:%d %b %H:%M} WIB</b>\n"
+                    f"{xs.esc(ev['title'])} — USD high impact.\n"
+                    f"<i>Bot siap: sinyal diblokir 30 mnt sebelum, "
+                    f"mode ⚡ NEWS aktif 10–45 mnt sesudahnya.</i>")
+                state[f"alerted_{ev['time'].isoformat()}"] = True
+                save_state(state)
+    except Exception as ex:
+        print(f"[warn] kalender gagal: {ex}", file=sys.stderr)
+        news_mode, news_ev = "blackout", None   # fail-closed: tanpa kalender = jangan entry
+
+    sig = build_scalp_signal(h1, m15, m5, now, data_source=src,
+                             news_mode=news_mode, news_event=news_ev)
+    msg = format_message(sig)
     setup_reset = reset_setup_if_inside_range(state, m15)
     if not args.dry_run:
         log_shadow_signal(sig)
     ok, reason = should_send(sig, state, now)
+
+    # News gate: blackout/quiet → jangan kirim sinyal baru.
+    if sig.direction != "NO-TRADE" and news_mode in ("blackout", "quiet"):
+        ok = False
+        phase = "blackout 30 mnt sebelum rilis" if news_mode == "blackout" \
+            else "quiet 10 mnt pasca-rilis (spread chaos)"
+        reason = f"news gate: {phase}"
 
     if args.dry_run:
         for t in ("<b>", "</b>", "<i>", "</i>"):
