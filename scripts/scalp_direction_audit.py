@@ -171,7 +171,21 @@ def momentum_passed(m15, direction):
     return sc.momentum_m15(m15, direction).passed
 
 
-def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None):
+def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
+    """Momentum ala M15 (RSI>50 + hist MACD naik vs 3 bar lalu) tapi dihitung
+    pada deret close M5 yang SEMUA closed — resolusi 5 menit, tidak menunggu
+    candle M15 berikutnya tutup untuk mendapat nilai indikator baru."""
+    c = m5s["close"]
+    r = float(xs.rsi(c).iloc[-1])
+    _, _, hist = xs.macd(c)
+    h_now, h_prev = float(hist.iloc[-1]), float(hist.iloc[-4])
+    macd_up = h_now > h_prev
+    rsi_ok = (r > 50) if direction > 0 else (r < 50)
+    return rsi_ok and (macd_up if direction > 0 else not macd_up)
+
+
+def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
+        momentum_on="m15"):
     rows = []
     last_by_direction = {}
     active_by_direction = {}
@@ -206,7 +220,8 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None):
                 continue
         m5s = m5.iloc[:i + 1]
         trend_direction, trend_trigger = sc.trend_h1(h1s)
-        momentum_ok = momentum_passed(m15s, direction)
+        momentum_ok = (momentum_m5_passed(m5s, direction) if momentum_on == "m5"
+                       else momentum_passed(m15s, direction))
         sweep = sc.liquidity_sweep(m5s, direction)
         # H1 tetap wajib sebagai regime gate, tetapi tidak wajib searah kecuali baseline.
         regime_ok = trend_direction != 0
@@ -594,6 +609,8 @@ def main():
         df = run_intrabar(h1, m15, m5, setup_dedup=CONTINUATION_ATR,
                           min_age_min=age_min)
         stats(df, f"intrabar_struct_age{age_min}")
+    stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
+              momentum_on="m5"), "struct_break_momentum_on_m5")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
