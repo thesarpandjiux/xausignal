@@ -31,6 +31,30 @@ def load(tf):
     return d
 
 
+def trend_h1_var(h1, slope_bars=5):
+    """Salinan sc.trend_h1 dengan slope lookback bisa divariasikan."""
+    c = h1["close"]
+    e20, e50 = xs.ema(c, 20), xs.ema(c, 50)
+    slope_up = e20.iloc[-1] > e20.iloc[-1 - slope_bars]
+    if e20.iloc[-1] > e50.iloc[-1] and slope_up:
+        return 1, True
+    if e20.iloc[-1] < e50.iloc[-1] and not slope_up:
+        return -1, True
+    return 0, False
+
+
+def direction_struct_h1_aligned(h1, m15):
+    """Structure break M15 TAPI wajib searah trend H1 penuh (bukan hanya
+    veto ekstrem 0.5 ATR): BUY hanya saat H1 uptrend, SELL hanya saat H1
+    downtrend. Menguji hipotesis: sinyal melawan H1 (mis. SELL di bottom
+    4306 saat H1 masih downtrend) adalah sumber rugi reversal."""
+    direction = direction_struct(h1, m15)
+    if not direction:
+        return 0
+    trend, _ = trend_h1_var(h1, 5)
+    return direction if trend == direction else 0
+
+
 def direction_m15(m15):
     """Penentu arah dari M15: EMA20 vs EMA50 + slope; kembalikan +1/-1/0."""
     c = m15["close"]
@@ -185,7 +209,7 @@ def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
 
 
 def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
-        momentum_on="m15"):
+        momentum_on="m15", trend_fn=None):
     rows = []
     last_by_direction = {}
     active_by_direction = {}
@@ -219,7 +243,8 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
             if not advanced:
                 continue
         m5s = m5.iloc[:i + 1]
-        trend_direction, trend_trigger = sc.trend_h1(h1s)
+        trend_direction, trend_trigger = (trend_fn(h1s) if trend_fn
+                                          else sc.trend_h1(h1s))
         momentum_ok = (momentum_m5_passed(m5s, direction) if momentum_on == "m5"
                        else momentum_passed(m15s, direction))
         sweep = sc.liquidity_sweep(m5s, direction)
@@ -611,6 +636,12 @@ def main():
         stats(df, f"intrabar_struct_age{age_min}")
     stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
               momentum_on="m5"), "struct_break_momentum_on_m5")
+    stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
+              trend_fn=lambda h: trend_h1_var(h, 3)),
+          "struct_break_trend_slope3")
+    stats(run(h1, m15, m5, direction_struct_h1_aligned,
+              setup_dedup=CONTINUATION_ATR),
+          "struct_break_h1_aligned")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
