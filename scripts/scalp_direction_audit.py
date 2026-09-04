@@ -135,6 +135,54 @@ def direction_struct_noveto(h1, m15):
     return direction
 
 
+def _break_direction(m15):
+    """Structure break M15 → (arah, depth ATR), tanpa veto H1."""
+    c = m15["close"]
+    history = c.iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    if len(history) < STRUCTURE_LOOKBACK:
+        return 0, 0.0
+    range_high = float(history.max())
+    range_low = float(history.min())
+    px = float(c.iloc[-1])
+    atr_m15 = float(xs.atr(m15).iloc[-1])
+    if not atr_m15:
+        return 0, 0.0
+    if px > range_high and direction_m15(m15) >= 0:
+        return 1, (px - range_high) / atr_m15
+    if px < range_low and direction_m15(m15) <= 0:
+        return -1, (range_low - px) / atr_m15
+    return 0, 0.0
+
+
+def direction_struct_cond_veto(h1, m15, allow_fn):
+    """Veto produksi asimetris yang DIKONDISIKAN:
+    - BUY tidak pernah diveto (produksi: +0.529R kalau dibuka).
+    - SELL vs gap H1 positif ekstrem diveto KECUALI allow_fn(h1, m15) True —
+      allow_fn = bukti tren H1 sendiri mulai patah / ekstrem melunak.
+    Uji: apakah SELL melawan ekstrem+ jadi menguntungkan kalau kita tunggu
+    sinyal tren H1 patah, bukan veto buta sepanjang masa?"""
+    direction, _ = _break_direction(m15)
+    if not direction:
+        return 0
+    if direction == -1 and h1_extreme(h1) == 1:
+        if not allow_fn(h1, m15):
+            return 0
+    return direction
+
+
+def allow_close_below_ema20(h1, m15):
+    """Close M15 sudah menembus ke BAWAH EMA20 H1 → tren H1 patah (bukan
+    sekadar pullback di atas EMA20)."""
+    e20 = float(xs.ema(h1["close"], 20).iloc[-1])
+    return float(m15["close"].iloc[-1]) < e20
+
+
+def allow_ema20_slope_down(h1, m15):
+    """Slope EMA20 H1 sudah berbalik turun (3 bar terakhir)."""
+    e20 = xs.ema(h1["close"], 20)
+    return float(e20.iloc[-1]) < float(e20.iloc[-4])
+
+
 def direction_struct_override_deep(h1, m15, min_deep):
     """Structure break M15; veto H1 ekstrem TETAP utk break tipis, TAPI
     di-override kalau break DALAM (>= min_deep ATR M15 dari level range).
@@ -774,6 +822,23 @@ def main():
         stats(run(h1, m15, m5, lambda h, m: direction_struct_override_deep(h, m, d),
                   setup_dedup=CONTINUATION_ATR),
               f"struct_deep{d:g}_override")
+    print("\n── hipotesis 'SELL vs ekstrem+ diizinkan saat tren H1 patah' ──")
+    conds = {
+        "cond_close_ema20": lambda h, m: (
+            direction_struct_cond_veto(h, m, allow_close_below_ema20)),
+        "cond_slope_down": lambda h, m: (
+            direction_struct_cond_veto(h, m, allow_ema20_slope_down)),
+        "cond_close_and_slope": lambda h, m: (
+            direction_struct_cond_veto(
+                h, m, lambda hh, mm: allow_close_below_ema20(hh, mm)
+                and allow_ema20_slope_down(hh, mm))),
+        "cond_close_or_slope": lambda h, m: (
+            direction_struct_cond_veto(
+                h, m, lambda hh, mm: allow_close_below_ema20(hh, mm)
+                or allow_ema20_slope_down(hh, mm))),
+    }
+    for name, fn in conds.items():
+        stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR), name)
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
