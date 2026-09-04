@@ -282,7 +282,8 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
         r_result = 0.0 if won is None else AUDIT_RR if won else -1.0
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
-                     "n": n, "won": won, "outcome": outcome, "r": r_result})
+                     "n": n, "won": won, "outcome": outcome, "r": r_result,
+                     "px": px})
     return pd.DataFrame(rows)
 
 
@@ -636,6 +637,22 @@ def main():
         stats(df, f"intrabar_struct_age{age_min}")
     stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
               momentum_on="m5"), "struct_break_momentum_on_m5")
+    # Dump sinyal pada jendela reversal 4306->4500 (2-4 Sep) utk banding
+    # timing entry baseline vs slope3 vs h1_aligned
+    dump_signal_window = ("2026-09-02", "2026-09-04")
+    for label, kwargs in [
+        ("base", {}),
+        ("slope3", {"trend_fn": lambda h: trend_h1_var(h, 3)}),
+        ("h1align", {"direction_fn": direction_struct_h1_aligned}),
+    ]:
+        df = run(h1, m15, m5, kwargs.pop("direction_fn", fn),
+                 setup_dedup=CONTINUATION_ATR, **kwargs)
+        win = df[(df["t"] >= dump_signal_window[0])
+                 & (df["t"] < dump_signal_window[1])]
+        print(f"signal_window_{label}: {len(win)} sinyal 2-4 Sep")
+        for _, s in win.iterrows():
+            print(f"  {s['t']:%m-%d %H:%M} {s['dir']:4} {s['outcome']:7} "
+                  f"r={s['r']:+.1f} px={s['px']:.2f}")
     stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
               trend_fn=lambda h: trend_h1_var(h, 3)),
           "struct_break_trend_slope3")
