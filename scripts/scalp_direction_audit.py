@@ -117,6 +117,34 @@ def direction_struct(h1, m15):
     return 0 if extreme and direction and direction != extreme else direction
 
 
+def h1_extension_atr(h1) -> float:
+    """Jarak close H1 terakhir vs EMA20 H1 dalam satuan ATR H1.
+    Positif = harga di atas EMA20 (naik), negatif = di bawah (turun)."""
+    c = h1["close"]
+    e20 = xs.ema(c, 20)
+    a = float(xs.atr(h1).iloc[-1])
+    return ((float(c.iloc[-1]) - float(e20.iloc[-1])) / a) if a else 0.0
+
+
+def direction_struct_no_extreme(h1, m15, max_ext=2.0):
+    """Structure break M15, TAPI tolak bila harga teregang ekstrem dari EMA20
+    H1 (mean-reversion risk): SELL ditolak bila close > max_ext*ATR di atas
+    EMA20? BUKAN — SELL di bottom artinya harga JAUH DI BAWAH EMA20.
+    Logika: SELL (short) berisiko saat harga sudah JAUH DI BAWAH EMA20 (fall
+    ekstrem, siap rebound) → tolak bila extension < -max_ext.
+    BUY berisiko saat harga sudah jauh DI ATAS EMA20 (rally ekstrem) →
+    tolak bila extension > +max_ext."""
+    direction = direction_struct(h1, m15)
+    if not direction:
+        return 0
+    ext = h1_extension_atr(h1)
+    if direction > 0 and ext > max_ext:
+        return 0  # BUY di puncak teregang
+    if direction < 0 and ext < -max_ext:
+        return 0  # SELL di dasar teregang
+    return direction
+
+
 def direction_pullback(h1, m15):
     """Continuation: H1 jelas, tiga close M15 pullback, lalu break candle sebelumnya."""
     direction = sc.trend_h1(h1)[0]
@@ -644,6 +672,8 @@ def main():
         ("base", {}),
         ("slope3", {"trend_fn": lambda h: trend_h1_var(h, 3)}),
         ("h1align", {"direction_fn": direction_struct_h1_aligned}),
+        ("noext2", {"direction_fn": lambda h, m: direction_struct_no_extreme(h, m, 2.0)}),
+        ("noext1.5", {"direction_fn": lambda h, m: direction_struct_no_extreme(h, m, 1.5)}),
     ]:
         df = run(h1, m15, m5, kwargs.pop("direction_fn", fn),
                  setup_dedup=CONTINUATION_ATR, **kwargs)
@@ -659,6 +689,12 @@ def main():
     stats(run(h1, m15, m5, direction_struct_h1_aligned,
               setup_dedup=CONTINUATION_ATR),
           "struct_break_h1_aligned")
+    stats(run(h1, m15, m5, lambda h, m: direction_struct_no_extreme(h, m, 2.0),
+              setup_dedup=CONTINUATION_ATR),
+          "struct_break_no_extreme_2atr")
+    stats(run(h1, m15, m5, lambda h, m: direction_struct_no_extreme(h, m, 1.5),
+              setup_dedup=CONTINUATION_ATR),
+          "struct_break_no_extreme_1.5atr")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
