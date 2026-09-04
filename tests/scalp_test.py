@@ -296,6 +296,51 @@ def test_structure_break_via_m5_news_mode():
     ok("structure break via M5 hanya aktif di mode news, normal tetap nunggu M15")
 
 
+def test_h1_veto_asymmetric():
+    """Veto H1 ekstrem asimetris (bukti 5000 bar, continuation 0.75 ATR):
+    - SELL melawan gap H1 positif ekstrem (extreme=+1) → TETAP diveto (-0.500R).
+    - BUY melawan gap H1 negatif ekstrem (extreme=-1) → DIBUKA (+0.529R).
+    - Mode news (m5 diberikan): veto dilonggarkan penuh (2 arah)."""
+    # H1 uptrend ekstrem: EMA20 jauh di atas EMA50 (+1.5 ATR)
+    idxh = pd.date_range("2026-01-01", periods=80, freq="1h", tz="utc")
+    up = 4500 + np.arange(80) * 3.0                      # naik konsisten
+    h1_up = pd.DataFrame({"open": up - 1, "high": up + 2,
+                          "low": up - 2, "close": up}, index=idxh)
+    # H1 downtrend ekstrem: EMA20 jauh di bawah EMA50 (-1.5 ATR)
+    down = 4500 - np.arange(80) * 3.0
+    h1_dn = pd.DataFrame({"open": down + 1, "high": down + 2,
+                          "low": down - 2, "close": down}, index=idxh)
+    # M15: break BAWAH — 21 bar pertama datar, bar terakhir tembus ke bawah
+    idx15 = pd.date_range("2026-01-01", periods=60, freq="15min", tz="utc")
+    flat = np.full(60, 4500.0)
+    dn15 = flat.copy()
+    dn15[-1] = 4496.0
+    m15_dn = pd.DataFrame({"open": dn15 + 0.2, "high": dn15 + 2,
+                           "low": dn15 - 2, "close": dn15}, index=idx15)
+    # M15: break ATAS — 21 bar pertama datar, bar terakhir tembus ke atas
+    up15 = np.full(60, 4500.0)
+    up15[-1] = 4504.0
+    m15_up = pd.DataFrame({"open": up15 - 0.2, "high": up15 + 2,
+                           "low": up15 - 2, "close": up15}, index=idx15)
+    # SELL vs H1 uptrend ekstrem → diveto (mode normal)
+    d, trig = sc.structure_direction(h1_up, m15_dn, None)
+    assert d == 0 and not trig.passed, \
+        f"SELL vs H1 up-ekstrem harus diveto, dapat {d} {trig.note}"
+    # BUY vs H1 downtrend ekstrem → DIBUKA (mode normal)
+    d2, _ = sc.structure_direction(h1_dn, m15_up, None)
+    assert d2 == 1, f"BUY vs H1 dn-ekstrem harus dibuka, dapat {d2}"
+    # Mode news (m5 diberikan): SELL vs H1 up-ekstrem → DIBUKA
+    idx5 = pd.date_range("2026-01-01", periods=180, freq="5min", tz="utc")
+    m5_dn = pd.DataFrame({"open": np.full(180, 4497.0),
+                          "high": np.full(180, 4499.0),
+                          "low": np.full(180, 4496.0),
+                          "close": np.full(180, 4497.0)}, index=idx5)
+    d3, _ = sc.structure_direction(h1_up, m15_dn, m5_dn)
+    assert d3 == -1, f"mode news: SELL vs H1 up-ekstrem harus dibuka, dapat {d3}"
+    ok("veto H1 asimetris: SELL vs gap+ tetap diveto, BUY vs gap- dibuka, "
+       "mode news bebas veto 2 arah")
+
+
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
     test_rejects_stale_or_old_m5_feed()
@@ -312,5 +357,6 @@ if __name__ == "__main__":
     test_news_alert_due_once()
     test_momentum_m5_closed_matches_m15_on_clean_trend()
     test_structure_break_via_m5_news_mode()
+    test_h1_veto_asymmetric()
     print("\n" + "─" * 50)
     print("✅ Semua uji lolos.")

@@ -140,7 +140,15 @@ def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame,
     a = float(xs.atr(h1).iloc[-1])
     gap = (float(e20.iloc[-1]) - float(e50.iloc[-1])) / a if a else 0.0
     extreme = 1 if gap > 0.5 else -1 if gap < -0.5 else 0
-    if extreme and m15_dir != extreme:
+    # Veto asimetris (bukti 5000 bar, continuation 0.75 ATR):
+    #   - SELL melawan gap H1 positif ekstrem (short di bawah uptrend H1 kuat)
+    #     = -0.500R kalau dieksekusi → veto TETAP berlaku.
+    #   - BUY melawan gap H1 negatif ekstrem = +0.529R → veto MERUGIKAN,
+    #     dibuka untuk BUY.
+    #   - Mode news (m5 diberikan): veto dilonggarkan penuh — pasca-rilis
+    #     pergerakan 100+ poin terjadi dalam menit, EMA H1 belum sempat
+    #     bereaksi; break M15/M5 + momentum + sweep sudah cukup (SL 0.6 ATR).
+    if m5 is None and extreme == 1 and m15_dir == -1:
         return 0, Trigger("Structure Break M15", False,
                           f"break diveto tren H1 ekstrem ({gap:+.2f} ATR)")
     side = "atas" if m15_dir > 0 else "bawah"
