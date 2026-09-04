@@ -133,45 +133,47 @@ def cmd_update() -> int:
     bars = min(int(need_h * per_hour * 1.2) + 100, 5000)
     print(f"{len(todo)} sinyal perlu dinilai · mengambil ~{bars} bar {INTERVAL}…")
 
-    # Sinyal dari sumber berbeda TIDAK boleh dinilai bersama: yfinance memakai
-    # futures GC=F yang berpremi ~$54 terhadap spot. Menilai sinyal spot dengan
-    # harga futures membuat setiap BUY tercatat menang seketika.
-    srcs = {str(s.get("source", "")).strip() for s in todo if str(s.get("source", "")).strip()}
+    # Sinyal dari sumber berbeda TIDAK boleh dinilai dengan harga sumber lain:
+    # dukascopy & twelvedata sama-sama spot XAU/USD (beda <$1), tapi yfinance
+    # futures GC=F berpremi ~$54. Nilai per sumber dengan feed sumber itu.
+    srcs = sorted({str(s.get("source", "")).strip() or "dukascopy"
+                   for s in todo})
     if len(srcs) > 1:
-        print(f"⚠️  Sinyal berasal dari sumber berbeda: {', '.join(sorted(srcs))}")
-        print("   Harga antar sumber tidak sebanding (spot vs futures).")
-        print("   Nilai terpisah per sumber, atau abaikan sinyal lama.")
-        return 1
-
-    try:
-        import datafeed
-        want = next(iter(srcs)) if srcs else "dukascopy"
-        feed = datafeed.get_ohlc(INTERVAL, bars, prefer=want)
-        if srcs and feed.source not in (want, "cache"):
-            print(f"❌ Sinyal dibuat dari '{want}' tapi hanya '{feed.source}' "
-                  f"yang tersedia sekarang.")
-            print("   Harga tidak sebanding — penilaian dibatalkan.")
-            return 1
-        price = feed.df
-        print(f"  sumber: {feed.label()} · {len(price)} bar · "
-              f"{price.index[0]:%d %b} → {price.index[-1]:%d %b}")
-    except Exception as e:
-        print(f"Gagal mengambil harga: {e}")
-        return 1
+        print(f"ℹ️  Sinyal dari {len(srcs)} sumber ({', '.join(srcs)}) — "
+              f"dinilai terpisah per sumber.")
 
     counts = defaultdict(int)
-    for s in todo:
-        if s["time"] < price.index[0]:
-            outcome, r, closed, note = "NO-DATA", 0.0, "", "sinyal lebih tua dari data"
-        else:
-            outcome, r, closed, note = resolve(s, price)
-        counts[outcome] += 1
-        jr[s["id"]] = {"id": s["id"], "time": s["time"].isoformat(),
-                       "direction": s["direction"], "grade": s["grade"],
-                       "composite": s["composite"], "entry": s["entry"],
-                       "sl": s["sl"], "tp1": s["tp1"], "rr1": s["rr1"],
-                       "outcome": outcome, "r_result": r,
-                       "closed_at": closed, "note": note}
+    for src in srcs:
+        group = [s for s in todo if (str(s.get("source", "")).strip()
+                                     or "dukascopy") == src]
+        try:
+            import datafeed
+            feed = datafeed.get_ohlc(INTERVAL, bars, prefer=src)
+            if feed.source not in (src, "cache"):
+                print(f"⚠️  Sinyal '{src}' tapi feed '{feed.source}' tersedia "
+                      f"— sumber tidak sebanding, lewati {len(group)} sinyal.")
+                continue
+            price = feed.df
+            print(f"  [{src}] {feed.label()} · {len(price)} bar · "
+                  f"{price.index[0]:%d %b} → {price.index[-1]:%d %b}")
+        except Exception as e:
+            print(f"⚠️  Gagal ambil harga [{src}]: {e} — lewati "
+                  f"{len(group)} sinyal.")
+            continue
+
+        for s in group:
+            if s["time"] < price.index[0]:
+                outcome, r, closed, note = "NO-DATA", 0.0, "", \
+                    "sinyal lebih tua dari data"
+            else:
+                outcome, r, closed, note = resolve(s, price)
+            counts[outcome] += 1
+            jr[s["id"]] = {"id": s["id"], "time": s["time"].isoformat(),
+                           "direction": s["direction"], "grade": s["grade"],
+                           "composite": s["composite"], "entry": s["entry"],
+                           "sl": s["sl"], "tp1": s["tp1"], "rr1": s["rr1"],
+                           "outcome": outcome, "r_result": r,
+                           "closed_at": closed, "note": note}
 
     save_journal(jr)
     print("  " + " · ".join(f"{k}: {v}" for k, v in sorted(counts.items())))
