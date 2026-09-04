@@ -325,7 +325,7 @@ def usd_high_events(events: list[dict], now: datetime,
 def news_window(events: list[dict], now: datetime) -> tuple[str, dict | None]:
     """Klasifikasi fase news untuk event USD high-impact terdekat.
     Return (fase, event): fase ∈ {blackout, quiet, aggressive, none}.
-    blackout: ≤30 mnt sebelum rilis (arah belum diketahui).
+    blackout: ≤60 mnt sebelum rilis (NEWS_BLOCK_BEFORE_MIN, arah belum diketahui).
     quiet:    ≤10 mnt setelah rilis (spread masih chaos, belum boleh entry).
     aggressive: +10..+45 mnt setelah rilis (mode ⚡ NEWS — entry lebih awal).
     Tidak ada look-ahead — semua murni waktu rilis dari kalender."""
@@ -334,8 +334,8 @@ def news_window(events: list[dict], now: datetime) -> tuple[str, dict | None]:
         return "none", None
     e = evs[0]
     d_min = (e["time"] - now).total_seconds() / 60
-    if 0 <= d_min <= NEWS_ALERT_MIN:
-        return "blackout", e                       # ≤30 mnt sebelum rilis
+    if 0 <= d_min <= NEWS_BLOCK_BEFORE_MIN:
+        return "blackout", e                       # ≤60 mnt sebelum rilis
     if -NEWS_QUIET_AFTER_MIN <= d_min < 0:
         return "quiet", e                          # ≤10 mnt setelah rilis
     if -NEWS_AGGR_WINDOW_MIN <= d_min < -NEWS_QUIET_AFTER_MIN:

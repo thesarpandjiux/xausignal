@@ -235,6 +235,8 @@ def test_news_window_phases():
     ev = lambda m: [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=m),
                      "title": "Non-Farm Employment Change"}]
     assert sc.news_window(ev(29), now)[0] == "blackout"      # 29 mnt sebelum
+    assert sc.news_window(ev(45), now)[0] == "blackout"      # 45 mnt sebelum (NEWS_BLOCK_BEFORE_MIN=60)
+    assert sc.news_window(ev(70), now)[0] == "none"          # 70 mnt sebelum → di luar blackout
     assert sc.news_window(ev(-5), now)[0] == "quiet"          # 5 mnt sesudah
     assert sc.news_window(ev(-20), now)[0] == "aggressive"    # 20 mnt sesudah
     assert sc.news_window(ev(-120), now)[0] == "none"         # jauh sesudah
