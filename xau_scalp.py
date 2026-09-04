@@ -117,13 +117,21 @@ def trend_h1(h1: pd.DataFrame) -> tuple[int, Trigger]:
     return 0, Trigger("Trend H1", False, "tidak searah / choppy")
 
 
-def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame) -> tuple[int, Trigger]:
-    """Arah dari break close M15 atas/bawah 20 candle; H1 hanya veto ekstrem."""
+def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame,
+                        m5: pd.DataFrame | None = None) -> tuple[int, Trigger]:
+    """Arah dari break close M15 atas/bawah 20 candle; H1 hanya veto ekstrem.
+    Mode news (m5 diberikan): deteksi break juga dari close M5 terakhir yang
+    menembus level M15 — reaksi tiap 5 mnt, tidak nunggu candle M15 tutup.
+    Semua bar sudah closed; tidak ada look-ahead."""
     c = m15["close"]
     hi20 = float(c.iloc[-21:-1].max())
     lo20 = float(c.iloc[-21:-1].min())
     px = float(c.iloc[-1])
     m15_dir = 1 if px > hi20 else -1 if px < lo20 else 0
+    if not m15_dir and m5 is not None and len(m5):
+        # M15 belum break; cek break dari close M5 terakhir (mode news).
+        p5 = float(m5["close"].iloc[-1])
+        m15_dir = 1 if p5 > hi20 else -1 if p5 < lo20 else 0
     if not m15_dir:
         return 0, Trigger("Structure Break M15", False, "belum break range 20 candle")
 
@@ -251,7 +259,9 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                         now: datetime, data_source: str = "",
                         news_mode: str = "none",
                         news_event: dict | None = None) -> ScalpSignal:
-    direction, trend_trig = structure_direction(h1, m15)
+    news_use_m5 = news_mode == "aggressive"   # ⚡ NEWS: pakai close M5 utk break
+    direction, trend_trig = structure_direction(
+        h1, m15, m5 if news_use_m5 else None)
     px = float(m5["close"].iloc[-1])
     a = float(xs.atr(m5).iloc[-1])
 

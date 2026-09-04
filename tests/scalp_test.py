@@ -269,6 +269,33 @@ def test_momentum_m5_closed_matches_m15_on_clean_trend():
     ok("momentum M5 closed searah tren menguat, bukan searah turun")
 
 
+def test_structure_break_via_m5_news_mode():
+    """Mode news (m5 diberikan): M15 belum break 20 candle, tapi close M5
+    terakhir sudah menembus level M15 → structure break terdeteksi.
+    Mode normal (m5=None): tetap nunggu candle M15 tutup → NO-TRADE."""
+    idx15 = pd.date_range("2026-01-01", periods=60, freq="15min", tz="utc")
+    # M15: harga konsolidasi sempit, belum break mana-mana
+    flat = np.full(60, 4500.0)
+    m15 = pd.DataFrame({"open": flat - 0.2, "high": flat + 2,
+                        "low": flat - 2, "close": flat + 1}, index=idx15)
+    # M5: bar terakhir menembus ATAS range M15 (4500+1+2 → close 4510)
+    idx5 = pd.date_range("2026-01-01", periods=180, freq="5min", tz="utc")
+    up = np.full(180, 4500.0)
+    up[-1] = 4510.0
+    m5 = pd.DataFrame({"open": up - 0.2, "high": up + 1,
+                       "low": up - 1, "close": up}, index=idx5)
+    idxh = pd.date_range("2026-01-01", periods=60, freq="1h", tz="utc")
+    h1 = pd.DataFrame({"open": flat - 1, "high": flat + 3,
+                       "low": flat - 3, "close": flat + 1}, index=idxh)
+    # H1 flat → tidak ada veto ekstrem
+    d_normal, _ = sc.structure_direction(h1, m15, None)
+    d_news, trig = sc.structure_direction(h1, m15, m5)
+    assert d_normal == 0, "mode normal harus tetap nunggu M15 close"
+    assert d_news == 1, f"mode news harus deteksi break via M5, dapat {d_news}"
+    assert trig.passed
+    ok("structure break via M5 hanya aktif di mode news, normal tetap nunggu M15")
+
+
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
     test_rejects_stale_or_old_m5_feed()
@@ -284,5 +311,6 @@ if __name__ == "__main__":
     test_news_window_phases()
     test_news_alert_due_once()
     test_momentum_m5_closed_matches_m15_on_clean_trend()
+    test_structure_break_via_m5_news_mode()
     print("\n" + "─" * 50)
     print("✅ Semua uji lolos.")
