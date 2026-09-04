@@ -140,17 +140,23 @@ def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame,
     a = float(xs.atr(h1).iloc[-1])
     gap = (float(e20.iloc[-1]) - float(e50.iloc[-1])) / a if a else 0.0
     extreme = 1 if gap > 0.5 else -1 if gap < -0.5 else 0
-    # Veto asimetris (bukti 5000 bar, continuation 0.75 ATR):
-    #   - SELL melawan gap H1 positif ekstrem (short di bawah uptrend H1 kuat)
-    #     = -0.500R kalau dieksekusi → veto TETAP berlaku.
-    #   - BUY melawan gap H1 negatif ekstrem = +0.529R → veto MERUGIKAN,
-    #     dibuka untuk BUY.
-    #   - Mode news (m5 diberikan): veto dilonggarkan penuh — pasca-rilis
-    #     pergerakan 100+ poin terjadi dalam menit, EMA H1 belum sempat
-    #     bereaksi; break M15/M5 + momentum + sweep sudah cukup (SL 0.6 ATR).
-    if m5 is None and extreme == 1 and m15_dir == -1:
-        return 0, Trigger("Structure Break M15", False,
-                          f"break diveto tren H1 ekstrem ({gap:+.2f} ATR)")
+    # Veto H1 ekstrem — asimetris + kondisional (bukti audit 5000 bar):
+    #   - BUY tidak pernah diveto (dulu diveto gap- ekstrem, padahal +0.529R
+    #     kalau dieksekusi — veto merugikan, dibuka).
+    #   - SELL vs gap+ ekstrem: diveto KECUALI slope EMA20 H1 sudah turun
+    #     (tren H1 patah). Data: veto buta = SELL +0.054; izinkan saat slope
+    #     turun = SELL +0.075 & total exp +0.140 -> +0.219, walkforward
+    #     -0.127 -> -0.028. "close < EMA20" terlalu longgar (SELL -0.058).
+    #   - Mode news (m5 diberikan): bebas veto — EMA H1 tak sempat reaksi
+    #     saat crash news 100+ poin dalam menit; break + momentum + sweep
+    #     sudah cukup (SL 0.6 ATR).
+    if (m5 is None and extreme == 1 and m15_dir == -1):
+        e20_series = e20
+        slope_down = float(e20_series.iloc[-1]) < float(e20_series.iloc[-4])
+        if not slope_down:
+            return 0, Trigger("Structure Break M15", False,
+                              f"break diveto tren H1 ekstrem ({gap:+.2f} ATR, "
+                              f"slope EMA20 belum turun)")
     side = "atas" if m15_dir > 0 else "bawah"
     return m15_dir, Trigger("Structure Break M15", True,
                             f"close break {side} range 20 candle")
