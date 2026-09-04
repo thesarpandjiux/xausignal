@@ -239,11 +239,18 @@ def liquidity_sweep(m5: pd.DataFrame, direction: int) -> Trigger:
 
 # ─────────────────────────────── Perakit sinyal ──────────────────────────────
 
-def gate_telemetry(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame) -> str:
+def gate_telemetry(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
+                   news_mode: str = "none") -> str:
     """Ringkasan read-only semua gate; tidak memengaruhi keputusan sinyal."""
-    direction, structure = structure_direction(h1, m15)
-    buy_momentum = momentum_m15(m15, 1)
-    sell_momentum = momentum_m15(m15, -1)
+    news_use_m5 = news_mode == "aggressive"
+    direction, structure = structure_direction(h1, m15,
+                                               m5 if news_use_m5 else None)
+    if news_use_m5:
+        buy_momentum = momentum_m5_closed(m5, 1)
+        sell_momentum = momentum_m5_closed(m5, -1)
+    else:
+        buy_momentum = momentum_m15(m15, 1)
+        sell_momentum = momentum_m15(m15, -1)
     buy_sweep = liquidity_sweep(m5, 1)
     sell_sweep = liquidity_sweep(m5, -1)
     h1_direction, _ = trend_h1(h1)
@@ -618,7 +625,6 @@ def main() -> int:
         print("Pasar tutup.")
         return 0
 
-    print(gate_telemetry(h1, m15, m5))
     state = load_state()
 
     # ── News-aware ────────────────────────────────────────────────────────────
@@ -636,13 +642,15 @@ def main() -> int:
                 xs.send_telegram(
                     f"📅 <b>News countdown {t:%d %b %H:%M} WIB</b>\n"
                     f"{xs.esc(ev['title'])} — USD high impact.\n"
-                    f"<i>Bot siap: sinyal diblokir 30 mnt sebelum, "
+                    f"<i>Bot siap: sinyal diblokir {NEWS_BLOCK_BEFORE_MIN} mnt sebelum, "
                     f"mode ⚡ NEWS aktif 10–45 mnt sesudahnya.</i>")
                 state[f"alerted_{ev['time'].isoformat()}"] = True
                 save_state(state)
     except Exception as ex:
         print(f"[warn] kalender gagal: {ex}", file=sys.stderr)
         news_mode, news_ev = "blackout", None   # fail-closed: tanpa kalender = jangan entry
+
+    print(gate_telemetry(h1, m15, m5, news_mode))
 
     sig = build_scalp_signal(h1, m15, m5, now, data_source=src,
                              news_mode=news_mode, news_event=news_ev)
@@ -655,7 +663,8 @@ def main() -> int:
     # News gate: blackout/quiet → jangan kirim sinyal baru.
     if sig.direction != "NO-TRADE" and news_mode in ("blackout", "quiet"):
         ok = False
-        phase = "blackout 30 mnt sebelum rilis" if news_mode == "blackout" \
+        phase = f"blackout {NEWS_BLOCK_BEFORE_MIN} mnt sebelum rilis" \
+            if news_mode == "blackout" \
             else "quiet 10 mnt pasca-rilis (spread chaos)"
         reason = f"news gate: {phase}"
 
