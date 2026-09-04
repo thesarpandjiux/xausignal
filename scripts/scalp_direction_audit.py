@@ -135,6 +135,33 @@ def direction_struct_noveto(h1, m15):
     return direction
 
 
+def direction_struct_override_deep(h1, m15, min_deep):
+    """Structure break M15; veto H1 ekstrem TETAP utk break tipis, TAPI
+    di-override kalau break DALAM (>= min_deep ATR M15 dari level range).
+    Uji hipotesis user: 'break kuat = konfirmasi cukup, tak perlu nunggu H1'."""
+    c = m15["close"]
+    history = c.iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    if len(history) < STRUCTURE_LOOKBACK:
+        return 0
+    range_high = float(history.max())
+    range_low = float(history.min())
+    px = float(c.iloc[-1])
+    atr_m15 = float(xs.atr(m15).iloc[-1])
+    if not atr_m15:
+        return 0
+    direction, depth = 0, 0.0
+    if px > range_high and direction_m15(m15) >= 0:
+        direction, depth = 1, (px - range_high) / atr_m15
+    elif px < range_low and direction_m15(m15) <= 0:
+        direction, depth = -1, (range_low - px) / atr_m15
+    if not direction:
+        return 0
+    extreme = h1_extreme(h1)
+    if extreme and direction != extreme and depth < min_deep:
+        return 0
+    return direction
+
+
 def h1_extension_atr(h1) -> float:
     """Jarak close H1 terakhir vs EMA20 H1 dalam satuan ATR H1.
     Positif = harga di atas EMA20 (naik), negatif = di bawah (turun)."""
@@ -666,6 +693,8 @@ def main():
         "m15_h1veto": lambda h, m: direction_m15_with_h1_veto(h, m),
         "struct_break": lambda h, m: direction_struct(h, m),
         "struct_break_noveto": lambda h, m: direction_struct_noveto(h, m),
+        "struct_deep1_override": lambda h, m: direction_struct_override_deep(h, m, 1.0),
+        "struct_deep2_override": lambda h, m: direction_struct_override_deep(h, m, 2.0),
         "pullback_continuation": lambda h, m: direction_pullback(h, m),
         "fast_reversal": lambda h, m: direction_fast_reversal(h, m),
     }
@@ -738,6 +767,13 @@ def main():
     stats(run(h1, m15, m5, lambda h, m: direction_struct_no_extreme(h, m, 1.5),
               setup_dedup=CONTINUATION_ATR),
           "struct_break_no_extreme_1.5atr")
+    # Hipotesis user: break DALAM override veto H1 ekstrem. Banding depth 1.0
+    # vs 2.0 ATR M15 terhadap baseline (veto tetap) & noveto (bebas).
+    print("\n── hipotesis 'break dalam override veto' ──")
+    for d in (1.0, 2.0):
+        stats(run(h1, m15, m5, lambda h, m: direction_struct_override_deep(h, m, d),
+                  setup_dedup=CONTINUATION_ATR),
+              f"struct_deep{d:g}_override")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
