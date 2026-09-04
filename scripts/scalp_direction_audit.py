@@ -117,6 +117,24 @@ def direction_struct(h1, m15):
     return 0 if extreme and direction and direction != extreme else direction
 
 
+def direction_struct_noveto(h1, m15):
+    """Structure break M15 TANPA veto H1 ekstrem — counterfactual utk mengukur
+    berapa sinyal diblokir veto (gap EMA H1 >0.5 ATR melawan arah) dan hasilnya
+    kalau dieksekusi. Sama persis dgn direction_struct minus dua baris veto."""
+    c = m15["close"]
+    history = c.iloc[-STRUCTURE_LOOKBACK - 1:-1]
+    if len(history) < STRUCTURE_LOOKBACK:
+        return 0
+    range_high = float(history.max())
+    range_low = float(history.min())
+    px = float(c.iloc[-1])
+    atr_m15 = float(xs.atr(m15).iloc[-1])
+    buy_break = px > range_high and (px - range_high) >= MIN_BREAK_ATR * atr_m15
+    sell_break = px < range_low and (range_low - px) >= MIN_BREAK_ATR * atr_m15
+    direction = 1 if buy_break and direction_m15(m15) >= 0 else -1 if sell_break and direction_m15(m15) <= 0 else 0
+    return direction
+
+
 def h1_extension_atr(h1) -> float:
     """Jarak close H1 terakhir vs EMA20 H1 dalam satuan ATR H1.
     Positif = harga di atas EMA20 (naik), negatif = di bawah (turun)."""
@@ -647,6 +665,7 @@ def main():
         "m15_dir": lambda h, m: direction_m15(m),
         "m15_h1veto": lambda h, m: direction_m15_with_h1_veto(h, m),
         "struct_break": lambda h, m: direction_struct(h, m),
+        "struct_break_noveto": lambda h, m: direction_struct_noveto(h, m),
         "pullback_continuation": lambda h, m: direction_pullback(h, m),
         "fast_reversal": lambda h, m: direction_fast_reversal(h, m),
     }
@@ -659,10 +678,34 @@ def main():
     stats(production, f"struct_break_continuation_{CONTINUATION_ATR:g}atr")
     stats(production[production["grade"] == "A"], "production_grade_a")
     stats(production[production["grade"] == "B"], "production_grade_b")
-    for age_min in (5, 10):
-        df = run_intrabar(h1, m15, m5, setup_dedup=CONTINUATION_ATR,
-                          min_age_min=age_min)
-        stats(df, f"intrabar_struct_age{age_min}")
+
+    # ── Counterfactual veto H1 ekstrem ─────────────────────────────────────
+    # Sinyal yang muncul di run no-veto TAPI hilang di run veto (karena gap
+    # EMA H1 >0.5 ATR melawan arah) = sinyal yang diblokir veto. Ukur hasilnya
+    # kalau dieksekusi: berapa yang sebenarnya WIN (veto blokir bagus) vs LOSS
+    # (veto melindungi dari rugi).
+    fn_noveto = variants["struct_break_noveto"]
+    run_veto = run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR)
+    run_noveto = run(h1, m15, m5, fn_noveto, setup_dedup=CONTINUATION_ATR)
+    veto_keys = set(run_veto[["t", "dir", "px"]].round(3).itertuples(index=False))
+    blocked = run_noveto[
+        ~run_noveto.apply(
+            lambda r: (r["t"], r["dir"], round(r["px"], 3)) in veto_keys, axis=1)
+    ]
+    print("\n── counterfactual veto H1 ekstrem (>0.5 ATR melawan arah) ──")
+    print(f"run dengan veto:    n={len(run_veto)} exp={run_veto['r'].mean():+.3f}")
+    print(f"run tanpa veto:     n={len(run_noveto)} exp={run_noveto['r'].mean():+.3f}")
+    print(f"sinyal DIBLOKIR veto: n={len(blocked)} "
+          f"exp={blocked['r'].mean():+.3f} (hasil kalau dieksekusi)")
+    if len(blocked):
+        bout = blocked["outcome"].value_counts()
+        print(f"  WIN={bout.get('WIN', 0)} LOSS={bout.get('LOSS', 0)} "
+              f"TIMEOUT={bout.get('TIMEOUT', 0)}")
+        for d, g in blocked.groupby("dir"):
+            gout = g["outcome"].value_counts()
+            print(f"  {d}: n={len(g)} exp={g['r'].mean():+.3f} "
+                  f"WIN={gout.get('WIN', 0)} LOSS={gout.get('LOSS', 0)}")
+
     stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR,
               momentum_on="m5"), "struct_break_momentum_on_m5")
     # Dump sinyal pada jendela reversal 4306->4500 (2-4 Sep) utk banding
