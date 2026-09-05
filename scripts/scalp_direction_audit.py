@@ -23,6 +23,31 @@ HORIZON_BARS = int(_os.environ.get("SCALP_HORIZON_BARS", "12"))
 CONTINUATION_ATR = float(_os.environ.get("SCALP_CONTINUATION_ATR", "0.5"))
 MIN_BODY_ATR = float(_os.environ.get("SCALP_MIN_BODY_ATR", "0.3"))
 MAX_CLOSE_WICK = float(_os.environ.get("SCALP_MAX_CLOSE_WICK", "0.25"))
+# ── Cost model (V3 P0#1) ─────────────────────────────────────────────
+# Realisme eksekusi: entry kena setengah spread + slippage; exit (TP/SL)
+# kena sisa spread. Semua dalam satuan harga XAUUSD (poin dolar).
+# Default 0 = perilaku lama (tanpa biaya), hasil audit lama tetap reproducible.
+SPREAD = float(_os.environ.get("SCALP_AUDIT_SPREAD", "0"))
+SLIPPAGE = float(_os.environ.get("SCALP_AUDIT_SLIPPAGE", "0"))
+
+
+def cost_r(outcome: str, r_raw: float, risk: float) -> float:
+    """R setelah biaya eksekusi. risk = jarak entry ke SL (poin).
+
+    BUY: entry aktual = sinyal + spread/2 + slippage (beli di ask, slip).
+    SELL: entry aktual = sinyal − spread/2 − slippage.
+    → win dapat RR dikurangi cost/risk; loss bayar 1 + cost/risk;
+      TIMEOUT rugi cost/risk (keluar paksa di pasar, kena spread exit).
+    Kalau cost ≥ risk, TP mustahil → selalu rugi (cost_r menanganinya)."""
+    if not (SPREAD or SLIPPAGE) or risk <= 0:
+        return r_raw
+    cost = SPREAD / 2 + SLIPPAGE
+    c = cost / risk
+    if outcome == "WIN":
+        return r_raw - c
+    if outcome == "LOSS":
+        return -1.0 - c
+    return -c
 
 
 def load(tf):
@@ -401,7 +426,7 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
                     won = True
                     break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
-        r_result = 0.0 if won is None else AUDIT_RR if won else -1.0
+        r_result = cost_r(outcome, AUDIT_RR, risk)
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
                      "px": px})
@@ -456,9 +481,10 @@ def run_retest(h1, m15, m5, horizon=HORIZON_BARS, wait_bars=6):
                 if future["high"] >= sl: won = False; break
                 if future["low"] <= tp: won = True; break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        risk = abs(px - sl)
         rows.append({"t": ts, "dir": dirn, "grade": "RETEST", "n": 2,
                      "won": won, "outcome": outcome,
-                     "r": 0.0 if won is None else AUDIT_RR if won else -1.0})
+                     "r": cost_r(outcome, AUDIT_RR, risk)})
         pending = None
     return pd.DataFrame(rows)
 
@@ -579,7 +605,7 @@ def run_intrabar(h1, m15, m5, horizon=HORIZON_BARS, setup_dedup=CONTINUATION_ATR
                     won = True
                     break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
-        r_result = 0.0 if won is None else AUDIT_RR if won else -1.0
+        r_result = cost_r(outcome, AUDIT_RR, risk)
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
                      "age_min": age})
@@ -649,9 +675,10 @@ def run_early(h1, m15, m5, horizon=HORIZON_BARS):
                 if bar["high"] >= sl: won = False; break
                 if bar["low"] <= tp: won = True; break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        risk = abs(px - sl)
         rows.append({"t": ts, "dir": dirn, "grade": "EARLY", "n": 2,
                      "won": won, "outcome": outcome,
-                     "r": 0.0 if won is None else AUDIT_RR if won else -1.0})
+                     "r": cost_r(outcome, AUDIT_RR, risk)})
     return pd.DataFrame(rows)
 
 
