@@ -872,6 +872,13 @@ def main():
     }
     for name, fn in conds.items():
         stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR), name)
+    # Session stats untuk varian LIVE (cond_slope_down), bukan cuma production.
+    slope_df = run(h1, m15, m5, conds["cond_slope_down"],
+                   setup_dedup=CONTINUATION_ATR)
+    print("── session_breakdown cond_slope_down (live) ──")
+    session_stats(slope_df)
+    asia = slope_df["t"].map(session_name) == "Asia"
+    stats(slope_df[~asia], "slope_down_without_asia")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
