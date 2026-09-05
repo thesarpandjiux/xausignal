@@ -35,6 +35,14 @@ on:
         description: "Maksimum wick lawan arah sebagai fraksi range candle"
         required: false
         default: "0.25"
+      spread:
+        description: "Spread XAUUSD dalam poin dolar (cost model, 0=off)"
+        required: false
+        default: "0"
+      slippage:
+        description: "Slippage per sisi dalam poin dolar (cost model, 0=off)"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -84,6 +92,8 @@ jobs:
           SCALP_CONTINUATION_ATR: ${{ inputs.continuation_atr || '0.5' }}
           SCALP_MIN_BODY_ATR: ${{ inputs.min_body_atr || '0.3' }}
           SCALP_MAX_CLOSE_WICK: ${{ inputs.max_close_wick || '0.25' }}
+          SCALP_AUDIT_SPREAD: ${{ inputs.spread || '0' }}
+          SCALP_AUDIT_SLIPPAGE: ${{ inputs.slippage || '0' }}
         shell: bash
         run: |
           set -o pipefail
