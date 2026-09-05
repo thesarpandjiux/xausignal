@@ -86,9 +86,9 @@ def test_trend_and_full_pipeline():
     m5.iloc[-2, m5.columns.get_loc("low")] = swing_low - 1.0
     m5.iloc[-2, m5.columns.get_loc("close")] = swing_low + 0.5
 
-    before = sc.build_scalp_signal(h1, m15, m5, datetime.now(timezone.utc), data_source="test")
+    before = sc.build_scalp_signal(h1, m15, m5, datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc), data_source="test")
     telemetry = sc.gate_telemetry(h1, m15, m5)
-    sig = sc.build_scalp_signal(h1, m15, m5, datetime.now(timezone.utc), data_source="test")
+    sig = sc.build_scalp_signal(h1, m15, m5, datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc), data_source="test")
     assert sig.direction == before.direction and sig.n_triggers == before.n_triggers
     assert "structure=" in telemetry and "momentum_buy=" in telemetry and "sweep_sell=" in telemetry
     assert sig.direction == "BUY", f"expected BUY, got {sig.direction}"
@@ -341,6 +341,39 @@ def test_h1_veto_asymmetric():
        "mode news bebas veto 2 arah")
 
 
+def test_asia_session_gate():
+    """Gate Asia: jam 0-6 UTC semua NO-TRADE, jam London normal."""
+    rng = np.random.default_rng(7)
+    def make_df(n, freq, base=4600, trend_per_bar=0.3, noise=1.0):
+        idx = pd.date_range("2026-01-01", periods=n, freq=freq, tz="utc")
+        trend = np.arange(n) * trend_per_bar
+        close = base + trend + rng.normal(0, noise, n)
+        high = close + np.abs(rng.normal(0, noise * 0.6, n))
+        low = close - np.abs(rng.normal(0, noise * 0.6, n))
+        open_ = np.concatenate([[close[0]], close[:-1]])
+        return pd.DataFrame({"open": open_, "high": high, "low": low,
+                             "close": close}, index=idx)
+    h1 = make_df(200, "1h", trend_per_bar=1.5, noise=2.0)
+    m15 = make_df(200, "15min", trend_per_bar=0.4, noise=1.0)
+    breakout = float(m15["close"].iloc[-21:-1].max()) + 3.0
+    m15.iloc[-1, m15.columns.get_loc("close")] = breakout
+    m15.iloc[-1, m15.columns.get_loc("high")] = breakout + 0.5
+    m5 = make_df(200, "5min", trend_per_bar=0.15, noise=0.5)
+    swing_low = float(m5["low"].tail(40).min())
+    m5.iloc[-2, m5.columns.get_loc("low")] = swing_low - 1.0
+    m5.iloc[-2, m5.columns.get_loc("close")] = swing_low + 0.5
+
+    asia = datetime(2026, 9, 4, 3, 0, tzinfo=timezone.utc)   # jam 3 UTC
+    london = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)  # jam 12 UTC
+    sig_asia = sc.build_scalp_signal(h1, m15, m5, asia, data_source="test")
+    sig_ldn = sc.build_scalp_signal(h1, m15, m5, london, data_source="test")
+    assert sig_asia.direction == "NO-TRADE", \
+        f"Asia harus NO-TRADE, dapat {sig_asia.direction}"
+    assert sig_ldn.direction == "BUY", \
+        f"London harus BUY (setup sama), dapat {sig_ldn.direction}"
+    ok("session gate: Asia 0-6 UTC diblokir, London diizinkan")
+
+
 if __name__ == "__main__":
     print("xau_scalp.py — uji trigger detection\n")
     test_rejects_stale_or_old_m5_feed()
@@ -358,5 +391,6 @@ if __name__ == "__main__":
     test_momentum_m5_closed_matches_m15_on_clean_trend()
     test_structure_break_via_m5_news_mode()
     test_h1_veto_asymmetric()
+    test_asia_session_gate()
     print("\n" + "─" * 50)
     print("✅ Semua uji lolos.")

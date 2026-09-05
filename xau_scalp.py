@@ -66,6 +66,12 @@ NEWS_QUIET_AFTER_MIN = 10    # spread chaos setelah rilis; belum boleh entry
 NEWS_AGGR_WINDOW_MIN = 45    # mode ⚡ NEWS: +10..+45 mnt setelah rilis
 NEWS_SL_MULT = 0.6           # SL lebih ketat di mode news (0.8 ATR normal)
 
+# ── Session gate (V3 P1) ──
+# Audit 5000 bar (cost realistis): Asia exp -0.207 (n=34, win 23.5%) vs
+# overlap London-NY +0.892. Tanpa Asia: exp +0.168 → +0.350. Sesi Asia
+# (0-6 UTC) pasar tipis, break M15 sering false → blok semua sinyal.
+ASIA_BLOCK_UTC_UNTIL = 7     # jam UTC; 0-6 = Asia, blokir
+
 BASE = Path(os.getenv("XAU_HOME", "~/.xau_signal")).expanduser()
 STATE_FILE = BASE / "scalp_state.json"
 CALIB_FILE = BASE / "scalp_calibration.json"
@@ -281,6 +287,13 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                         news_mode: str = "none",
                         news_event: dict | None = None) -> ScalpSignal:
     news_use_m5 = news_mode == "aggressive"   # ⚡ NEWS: pakai close M5 utk break
+    # Session gate (V3 P1): blok semua sinyal sesi Asia (0-6 UTC) — audit
+    # 5000 bar: Asia exp -0.207 vs overlap +0.892; tanpa Asia +0.168→+0.350.
+    # Berlaku juga di backtest supaya calibration konsisten dgn live.
+    if now.hour < ASIA_BLOCK_UTC_UNTIL:
+        return ScalpSignal(time=now, direction="NO-TRADE", grade="-",
+                           n_triggers=0, triggers=[], price=0.0, atr=0.0,
+                           data_source=data_source)
     direction, trend_trig = structure_direction(
         h1, m15, m5 if news_use_m5 else None)
     px = float(m5["close"].iloc[-1])
