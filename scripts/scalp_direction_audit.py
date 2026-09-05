@@ -338,6 +338,10 @@ def momentum_passed(m15, direction):
     if MOMENTUM_MODE == "rsi_strength":
         # RSI saja, tanpa MACD: ambang lebih tegas dari 50.
         return rsi > 55 if direction > 0 else rsi < 45
+    if MOMENTUM_MODE == "macd_only":
+        # V3 P0#2 Variant B: RSI OFF total, konfirmasi murni MACD hist slope.
+        macd_up = float(hist.iloc[-1]) > float(hist.iloc[-4])
+        return macd_up if direction > 0 else not macd_up
     return sc.momentum_m15(m15, direction).passed
 
 
@@ -350,6 +354,8 @@ def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
     _, _, hist = xs.macd(c)
     h_now, h_prev = float(hist.iloc[-1]), float(hist.iloc[-4])
     macd_up = h_now > h_prev
+    if MOMENTUM_MODE == "macd_only":
+        return macd_up if direction > 0 else not macd_up
     rsi_ok = (r > 50) if direction > 0 else (r < 50)
     return rsi_ok and (macd_up if direction > 0 else not macd_up)
 
