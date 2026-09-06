@@ -368,7 +368,12 @@ def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
 
 
 def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
-        momentum_on="m15", trend_fn=None):
+        momentum_on="m15", trend_fn=None, sl_mode="atr",
+        struct_buffer_atr=0.25):
+    """sl_mode: "atr" (default) = SL 0.8 ATR M5 — perilaku lama.
+    "struct" = SL di luar level struktur yang ditembus ± buffer ATR M15
+    (V3 Risk Management: SL = beyond invalidation structure). Kalau SL
+    struktur menang, produksi layak pindah; kalau kalah, SL ATR sudah tepat."""
     rows = []
     last_by_direction = {}
     active_by_direction = {}
@@ -414,7 +419,19 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
             continue
         px = float(m5s["close"].iloc[-1])
         a = float(xs.atr(m5s).iloc[-1])
-        sl = px - direction * sc.ATR_SL_MULT * a
+        if sl_mode == "struct":
+            # SL struktur: di luar level break ± buffer ATR M15. Premis V3:
+            # break level = invalidation; kalau harga balik ke belakang level,
+            # setup batal. Buffer hindari SL terlalu ketat (noise wick).
+            atr15 = float(xs.atr(m15s).iloc[-1])
+            sl = (level - struct_buffer_atr * atr15 if direction > 0
+                  else level + struct_buffer_atr * atr15)
+            # Guard: SL harus di sisi benar. BUY: sl < px. SELL: sl > px.
+            # Kalau harga sudah balik melewati level, struktur gagal — skip.
+            if (direction > 0 and sl >= px) or (direction < 0 and sl <= px):
+                continue
+        else:
+            sl = px - direction * sc.ATR_SL_MULT * a
         risk = abs(px - sl)
         tp1 = px + direction * AUDIT_RR * risk
         if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
@@ -988,7 +1005,18 @@ def main():
     }
     for name, fn in conds.items():
         stats(run(h1, m15, m5, fn, setup_dedup=CONTINUATION_ATR), name)
-    # Session stats untuk varian LIVE (cond_slope_down), bukan cuma production.
+    # ── SL struktur vs ATR M5 (V3 Risk Management) ───────────────────
+    # Hipotesis: SL = beyond invalidation structure (level break ± buffer)
+    # mengalahkan SL 0.8 ATR M5. Uji 3 buffer: 0.0 (tepat level), 0.25,
+    # 0.5 ATR M15. Semua pakai cond_slope_down (varian live).
+    print("\n── SL struktur (level break ± buffer ATR M15) vs 0.8 ATR M5 ──")
+    stats(run(h1, m15, m5, conds["cond_slope_down"], setup_dedup=CONTINUATION_ATR,
+              sl_mode="atr"), "sl_atr_0.8m5")
+    for buf in (0.0, 0.25, 0.5):
+        stats(run(h1, m15, m5, conds["cond_slope_down"],
+                  setup_dedup=CONTINUATION_ATR, sl_mode="struct",
+                  struct_buffer_atr=buf), f"sl_struct_{buf:g}atr15")
+    # ── Session stats untuk varian LIVE (cond_slope_down), bukan cuma production. ──
     slope_df = run(h1, m15, m5, conds["cond_slope_down"],
                    setup_dedup=CONTINUATION_ATR)
     print("── session_breakdown cond_slope_down (live) ──")
