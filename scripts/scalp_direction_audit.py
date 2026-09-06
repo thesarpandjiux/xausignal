@@ -703,7 +703,15 @@ def stats(df, name):
     win = (df["outcome"] == "WIN").mean() * 100
     exp = df["r"].mean()
     outcomes = df["outcome"].value_counts()
-    print(f"{name}: n={total} win={win:.1f}% exp_r={exp:+.3f} "
+    # Profit factor = gross win R / |gross loss R| (termasuk TIMEOUT yg rugi cost).
+    gross_win = df.loc[df["r"] > 0, "r"].sum()
+    gross_loss = abs(df.loc[df["r"] < 0, "r"].sum())
+    pf = gross_win / gross_loss if gross_loss > 0 else float("inf")
+    # Max drawdown dari equity curve kumulatif R (urut waktu).
+    eq = df["r"].cumsum()
+    dd = (eq.cummax() - eq).max()
+    print(f"{name}: n={total} win={win:.1f}% exp_r={exp:+.3f} pf={pf:.2f} "
+          f"maxDD={dd:.2f}R "
           f"WIN={outcomes.get('WIN', 0)} LOSS={outcomes.get('LOSS', 0)} "
           f"TIMEOUT={outcomes.get('TIMEOUT', 0)}")
     for d, g in df.groupby("dir"):
@@ -789,6 +797,38 @@ def analyze_dxy(dxy_h1: pd.DataFrame, h1: pd.DataFrame,
         if grp:
             g = pd.DataFrame(grp)
             print(f"  {label:11}: n={len(g)} "
+                  f"win={(g['outcome']=='WIN').mean()*100:.1f}% "
+                  f"exp_r={g['r'].mean():+.3f}")
+
+
+def analyze_regime(m15: pd.DataFrame, slope_df: pd.DataFrame,
+                   name: str) -> None:
+    """Market-regime split kasar (V3 #6, tes dulu sebelum bangun classifier):
+    bucket sinyal per volatilitas M15 — LOW/MED/HIGH via ATR ekspanding
+    percentile (P33/P66 sampai bar ts, TANPA look-ahead). Kalau exp_r di
+    satu bucket jauh lebih buruk (mis. LOW volatilitas = chop), filter itu
+    layak; kalau rata, classifier regime = over-engineering."""
+    if slope_df is None or slope_df.empty:
+        return
+    atr_m15 = xs.atr(m15).dropna()
+    exp_q = atr_m15.expanding(min_periods=200).quantile
+    q33 = exp_q(0.33)
+    q66 = exp_q(0.66)
+    buckets = []
+    for _, s in slope_df.iterrows():
+        past = atr_m15[atr_m15.index <= s["t"]]
+        if len(past) < 200:
+            buckets.append("na")
+            continue
+        a = float(past.iloc[-1])
+        lo, hi = float(q33.loc[past.index[-1]]), float(q66.loc[past.index[-1]])
+        buckets.append("LOW" if a <= lo else "HIGH" if a > hi else "MED")
+    slope_df = slope_df.assign(regime=buckets)
+    print(f"regime_{name}_split (volatilitas M15, ekspanding P33/P66):")
+    for label in ("LOW", "MED", "HIGH"):
+        g = slope_df[slope_df["regime"] == label]
+        if len(g):
+            print(f"  {label:4}: n={len(g)} "
                   f"win={(g['outcome']=='WIN').mean()*100:.1f}% "
                   f"exp_r={g['r'].mean():+.3f}")
 
@@ -964,6 +1004,9 @@ def main():
     if dxy_f.exists():
         dxy_h1 = load_dxy(dxy_f)
     analyze_dxy(dxy_h1, h1, slope_df, "slope_down")
+    # Market-regime split (V3 #6): volatilitas M15 LOW/MED/HIGH — tes sebelum
+    # bangun classifier penuh. Kalau bucket rata, classifier = over-engineering.
+    analyze_regime(m15, slope_df, "slope_down")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
