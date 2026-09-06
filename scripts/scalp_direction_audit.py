@@ -773,11 +773,24 @@ def analyze_dxy(dxy_h1: pd.DataFrame, h1: pd.DataFrame,
         rows.append(dxy_slope_dir(sub))
     slope_df = slope_df.assign(dxy_dir=rows)
     print(f"dxy_{name}_split (sinyal cond_slope_down):")
-    for d in (-1, 0, 1):
-        gg = slope_df[slope_df["dxy_dir"] == d]
-        if len(gg):
-            print(f"  dxy_dir={d:>2}: n={len(gg)} win={(gg['outcome']=='WIN').mean()*100:.1f}% "
-                  f"exp_r={gg['r'].mean():+.3f}")
+    # Arah DXY vs arah sinyal: DXY *mendukung* kalau BUY saat DXY turun
+    # (-1) atau SELL saat DXY naik (+1) — premis makro XAU berlawanan DXY.
+    support, oppose, flat = [], [], []
+    for _, s in slope_df.iterrows():
+        dd = s["dxy_dir"]
+        if dd == "na" or dd == 0:
+            flat.append(s)
+        elif (s["dir"] == "BUY" and dd == -1) or (s["dir"] == "SELL" and dd == 1):
+            support.append(s)
+        else:
+            oppose.append(s)
+    for label, grp in (("DXY dukung", support), ("DXY lawan", oppose),
+                       ("DXY datar/na", flat)):
+        if grp:
+            g = pd.DataFrame(grp)
+            print(f"  {label:11}: n={len(g)} "
+                  f"win={(g['outcome']=='WIN').mean()*100:.1f}% "
+                  f"exp_r={g['r'].mean():+.3f}")
 
 
 def self_check_fast_reversal():
