@@ -80,6 +80,29 @@ jobs:
                       if attempt == 5:
                           raise
                       time.sleep(10 * attempt)
+          # DXY (DOLLAR.IDX/USD) — macro context V3 P0#2 (measurement tahap 1)
+          import dukascopy_python
+          from dukascopy_python.instruments import INSTRUMENT_IDX_AMERICA_DOLLAR_IDX_USD
+          from datetime import datetime, timedelta, timezone
+          for attempt in range(1, 6):
+              try:
+                  print('fetch dxy_1h, attempt', attempt, flush=True)
+                  end = datetime.now(timezone.utc)
+                  start = end - timedelta(hours=5000 * 2.2)
+                  dxy = dukascopy_python.fetch(
+                      INSTRUMENT_IDX_AMERICA_DOLLAR_IDX_USD,
+                      dukascopy_python.INTERVAL_HOUR_1,
+                      dukascopy_python.OFFER_SIDE_BID, start, end)
+                  if dxy is None or len(dxy) < 4900:
+                      raise RuntimeError(f'dxy bar kurang: {0 if dxy is None else len(dxy)}')
+                  df2 = datafeed._normalize(dxy).tail(5000)
+                  df2.to_csv(out / 'ohlc_dxy_1h.csv')
+                  print('dxy_1h', len(df2), df2.index[0], df2.index[-1], flush=True)
+                  break
+              except Exception:
+                  if attempt == 5:
+                      raise
+                  time.sleep(10 * attempt)
           PY
       - name: Audit arah BUY SELL
         env:

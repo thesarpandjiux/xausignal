@@ -56,6 +56,13 @@ def load(tf):
     return d
 
 
+def load_dxy(path: Path) -> pd.DataFrame:
+    """DXY H1 (DOLLAR.IDX/USD) dari cache audit — format sama ohlc."""
+    d = pd.read_csv(path, index_col=0, parse_dates=True)
+    d.index = pd.to_datetime(d.index, utc=True)
+    return d
+
+
 def trend_h1_var(h1, slope_bars=5):
     """Salinan sc.trend_h1 dengan slope lookback bisa divariasikan."""
     c = h1["close"]
@@ -717,6 +724,62 @@ def stats(df, name):
               f"(min exp={min(e):+.3f}, max={max(e):+.3f})")
 
 
+def dxy_slope_dir(dxy_h1: pd.DataFrame, lookback: int = 6) -> int:
+    """Arah DXY: EMA20 slope atas lookback bar. 1 = naik, -1 = turun,
+    0 = datar/choppy. Konteks macro utk XAU (premis: DXY naik → XAU turun)."""
+    e20 = xs.ema(dxy_h1["close"], 20)
+    if len(e20) < lookback + 2:
+        return 0
+    e_now, e_then = e20.iloc[-1], e20.iloc[-1 - lookback]
+    if abs(e_now - e_then) < 1e-6:
+        return 0
+    return 1 if e_now > e_then else -1
+
+
+def analyze_dxy(dxy_h1: pd.DataFrame, h1: pd.DataFrame,
+                slope_df: pd.DataFrame, name: str) -> None:
+    """Measurement tahap 1 macro regime (V3 P0#2) — TIDAK mengubah logika.
+
+    1. Korelasi return XAU-H1 vs DXY-H1 (premis dasar: berlawanan arah).
+    2. Split exp_r sinyal live cond_slope_down: DXY searah vs melawan vs
+       datar. Kalau DXY melawan (XAU BUY saat DXY turun) jauh lebih baik,
+       baru macro gate punya dasar data."""
+    if dxy_h1 is None or dxy_h1.empty:
+        print(f"dxy_{name}: data tidak tersedia (fetch gagal?)")
+        return
+    # 1. Korelasi return per jam (samakan index)
+    j = pd.concat([h1["close"].rename("xau"),
+                   dxy_h1["close"].rename("dxy")], axis=1, join="inner").dropna()
+    if len(j) > 100:
+        rx = j["xau"].pct_change().dropna()
+        rd = j["dxy"].pct_change().dropna()
+        corr = rx.corr(rd)
+        # Berapa fraksi jam XAU naik saat DXY turun (premis makro)?
+        opp = ((rx > 0) & (rd < 0)).mean()
+        same = ((rx > 0) & (rd > 0)).mean()
+        print(f"dxy_{name}: n={len(j)} korelasi_return={corr:+.3f} "
+              f"XAU-naik+DXY-turun={opp:.1%} XAU-naik+DXY-naik={same:.1%}")
+    # 2. Split sinyal (butuh slope_df berisi 'r' & 'dir')
+    if slope_df is None or slope_df.empty:
+        return
+    rows = []
+    for _, s in slope_df.iterrows():
+        # ambil bar DXY tepat sebelum sinyal (no look-ahead)
+        past = dxy_h1[dxy_h1.index <= s["t"]]
+        if past.empty:
+            rows.append("na")
+            continue
+        sub = past.tail(60)   # 60 jam cukup utk EMA20
+        rows.append(dxy_slope_dir(sub))
+    slope_df = slope_df.assign(dxy_dir=rows)
+    print(f"dxy_{name}_split (sinyal cond_slope_down):")
+    for d in (-1, 0, 1):
+        gg = slope_df[slope_df["dxy_dir"] == d]
+        if len(gg):
+            print(f"  dxy_dir={d:>2}: n={len(gg)} win={(gg['outcome']=='WIN').mean()*100:.1f}% "
+                  f"exp_r={gg['r'].mean():+.3f}")
+
+
 def self_check_fast_reversal():
     rng = np.random.default_rng(0)
     close = 100 + np.cumsum(rng.normal(-0.1, 1, 40))
@@ -879,6 +942,15 @@ def main():
     session_stats(slope_df)
     asia = slope_df["t"].map(session_name) == "Asia"
     stats(slope_df[~asia], "slope_down_without_asia")
+    # ── Macro context DXY (V3 P0#2) measurement tahap 1 ─────────────
+    # Korelasi DXY-XAU + split exp_r sinyal live per arah DXY. Ini murni
+    # pengukuran — tidak mengubah logika produksi. Kalau split menunjukkan
+    # "DXY melawan arah XAU" jelas lebih baik, macro gate layak dibangun.
+    dxy_f = CACHE / "ohlc_dxy_1h.csv"
+    dxy_h1 = None
+    if dxy_f.exists():
+        dxy_h1 = load_dxy(dxy_f)
+    analyze_dxy(dxy_h1, h1, slope_df, "slope_down")
     session_stats(production)
     sessions = production["t"].map(session_name)
     stats(production[~((sessions == "Asia") & (production["dir"] == "SELL"))],
