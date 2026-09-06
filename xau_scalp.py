@@ -60,10 +60,19 @@ ATR_SL_MULT = 0.8         # SL lebih ketat dari mode swing (1.0-2.5x) —
 MIN_RR = 2.0              # audit 5000 bar: +0.205R, BUY/SELL dan semua fold positif
 
 # ── News-aware scalp (NFP & USD high-impact) ──
-NEWS_BLOCK_BEFORE_MIN = 60   # jeda sinyal sebelum rilis (arah belum diketahui)
+# Profil blackout per event (V3 P2). Nilai = hipotesis awal (V3: "starting
+# hypotheses, not fixed truths"), diambil dari tabel dokumen V3.
+# Format: (before_min, quiet_after_min, aggr_window_min)
+NEWS_PROFILES = {
+    "fomc":          (60, 30, 60),   # keputusan suku bunga + Powell
+    "nfp":           (45, 20, 50),   # NFP + unemployment + AHE
+    "cpi":           (45, 15, 50),
+    "default_high":  (30, 10, 45),   # GDP/ISM/retail dkk — profil standar
+}
+NEWS_BLOCK_BEFORE_MIN = 60   # fallback bila event tak terklasifikasi
 NEWS_ALERT_MIN = 30          # kirim alert countdown saat ≤30 mnt
-NEWS_QUIET_AFTER_MIN = 10    # spread chaos setelah rilis; belum boleh entry
-NEWS_AGGR_WINDOW_MIN = 45    # mode ⚡ NEWS: +10..+45 mnt setelah rilis
+NEWS_QUIET_AFTER_MIN = 10    # fallback (profil default_high)
+NEWS_AGGR_WINDOW_MIN = 45    # fallback (profil default_high)
 NEWS_SL_MULT = 0.6           # SL lebih ketat di mode news (0.8 ATR normal)
 
 # ── Session gate (V3 P1) ──
@@ -366,24 +375,48 @@ def usd_high_events(events: list[dict], now: datetime,
     return out
 
 
+def news_profile_for(title: str) -> str:
+    """Klasifikasi profil blackout dari judul event forexfactory.
+    Return kunci NEWS_PROFILES. Matching urut: FOMC > NFP > CPI > default.
+    NFP sebenarnya 3 rilis bareng (NFP + unemployment + AHE) → 1 profil."""
+    t = (title or "").lower()
+    if any(k in t for k in ("fomc", "federal funds rate", "powell",
+                            "fed chair", "fed's ")):
+        return "fomc"
+    if any(k in t for k in ("non-farm", "nonfarm", "employment change",
+                            "unemployment rate", "average hourly earnings",
+                            "payrolls", "jobs report")):
+        return "nfp"
+    if any(k in t for k in ("cpi", "consumer price index")):
+        return "cpi"
+    return "default_high"
+
+
+def news_windows(profile: str) -> tuple[int, int, int]:
+    """(before_min, quiet_min, aggr_min) untuk profil. Fallback aman ke
+    default_high bila kunci tak dikenal — profil lama dipertahankan."""
+    return NEWS_PROFILES.get(profile, NEWS_PROFILES["default_high"])
+
+
 def news_window(events: list[dict], now: datetime) -> tuple[str, dict | None]:
     """Klasifikasi fase news untuk event USD high-impact terdekat.
     Return (fase, event): fase ∈ {blackout, quiet, aggressive, none}.
-    blackout: ≤60 mnt sebelum rilis (NEWS_BLOCK_BEFORE_MIN, arah belum diketahui).
-    quiet:    ≤10 mnt setelah rilis (spread masih chaos, belum boleh entry).
-    aggressive: +10..+45 mnt setelah rilis (mode ⚡ NEWS — entry lebih awal).
+    blackout: ≤N mnt sebelum rilis (N per profil event — V3 P2).
+    quiet:    ≤Q mnt setelah rilis (spread masih chaos, belum boleh entry).
+    aggressive: +Q..+A mnt setelah rilis (mode ⚡ NEWS — entry lebih awal).
     Tidak ada look-ahead — semua murni waktu rilis dari kalender."""
     evs = usd_high_events(events, now)
     if not evs:
         return "none", None
     e = evs[0]
+    before, quiet, aggr = news_windows(news_profile_for(e["title"]))
     d_min = (e["time"] - now).total_seconds() / 60
-    if 0 <= d_min <= NEWS_BLOCK_BEFORE_MIN:
-        return "blackout", e                       # ≤60 mnt sebelum rilis
-    if -NEWS_QUIET_AFTER_MIN <= d_min < 0:
-        return "quiet", e                          # ≤10 mnt setelah rilis
-    if -NEWS_AGGR_WINDOW_MIN <= d_min < -NEWS_QUIET_AFTER_MIN:
-        return "aggressive", e                     # +10..+45 mnt setelah rilis
+    if 0 <= d_min <= before:
+        return "blackout", e                       # ≤before mnt sebelum rilis
+    if -quiet <= d_min < 0:
+        return "quiet", e                          # ≤quiet mnt setelah rilis
+    if -aggr <= d_min < -quiet:
+        return "aggressive", e                     # +quiet..+aggr mnt setelah
     return "none", None
 
 
@@ -666,11 +699,13 @@ def main() -> int:
             due, ev = news_alert_due(events, now, state)
             if due and not args.dry_run and ev:
                 t = ev["time"].astimezone(timezone(timedelta(hours=7)))
+                before, quiet, aggr = news_windows(
+                    news_profile_for(ev["title"]))
                 xs.send_telegram(
                     f"📅 <b>News countdown {t:%d %b %H:%M} WIB</b>\n"
                     f"{xs.esc(ev['title'])} — USD high impact.\n"
-                    f"<i>Bot siap: sinyal diblokir {NEWS_BLOCK_BEFORE_MIN} mnt sebelum, "
-                    f"mode ⚡ NEWS aktif 10–45 mnt sesudahnya.</i>")
+                    f"<i>Bot siap: sinyal diblokir {before} mnt sebelum, "
+                    f"mode ⚡ NEWS aktif {quiet}–{aggr} mnt sesudahnya.</i>")
                 state[f"alerted_{ev['time'].isoformat()}"] = True
                 save_state(state)
     except Exception as ex:
@@ -690,9 +725,13 @@ def main() -> int:
     # News gate: blackout/quiet → jangan kirim sinyal baru.
     if sig.direction != "NO-TRADE" and news_mode in ("blackout", "quiet"):
         ok = False
-        phase = f"blackout {NEWS_BLOCK_BEFORE_MIN} mnt sebelum rilis" \
-            if news_mode == "blackout" \
-            else "quiet 10 mnt pasca-rilis (spread chaos)"
+        if news_ev is not None:
+            before, quiet, _ = news_windows(news_profile_for(news_ev["title"]))
+            phase = f"blackout {before} mnt sebelum rilis" \
+                if news_mode == "blackout" \
+                else f"quiet {quiet} mnt pasca-rilis (spread chaos)"
+        else:
+            phase = "blackout (kalender tak tepercaya)"
         reason = f"news gate: {phase}"
 
     if args.dry_run:

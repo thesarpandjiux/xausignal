@@ -233,15 +233,50 @@ def test_news_window_phases():
     from datetime import timedelta
     now = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
     ev = lambda m: [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=m),
-                     "title": "Non-Farm Employment Change"}]
-    assert sc.news_window(ev(29), now)[0] == "blackout"      # 29 mnt sebelum
-    assert sc.news_window(ev(45), now)[0] == "blackout"      # 45 mnt sebelum (NEWS_BLOCK_BEFORE_MIN=60)
+                     "title": "ISM Manufacturing PMI"}]   # default_high: 30/10/45
+    assert sc.news_window(ev(29), now)[0] == "blackout"      # 29 mnt sebelum (≤30)
+    assert sc.news_window(ev(45), now)[0] == "none"          # 45 mnt sebelum → di luar (default 30)
     assert sc.news_window(ev(70), now)[0] == "none"          # 70 mnt sebelum → di luar blackout
     assert sc.news_window(ev(-5), now)[0] == "quiet"          # 5 mnt sesudah
     assert sc.news_window(ev(-20), now)[0] == "aggressive"    # 20 mnt sesudah
     assert sc.news_window(ev(-120), now)[0] == "none"         # jauh sesudah
     assert sc.news_window(ev(120), now)[0] == "none"          # jauh sebelum
-    ok("fase news: blackout/quiet/aggressive/none benar")
+    ok("fase news: blackout/quiet/aggressive/none benar (default_high 30/10/45)")
+
+
+def test_news_profile_mapping():
+    """V3 P2: profil blackout beda per event — FOMC/NFP/CPI lebih lama."""
+    assert sc.news_profile_for("FOMC Statement") == "fomc"
+    assert sc.news_profile_for("Federal Funds Rate") == "fomc"
+    assert sc.news_profile_for("Non-Farm Employment Change") == "nfp"
+    assert sc.news_profile_for("Unemployment Rate") == "nfp"
+    assert sc.news_profile_for("Average Hourly Earnings m/m") == "nfp"
+    assert sc.news_profile_for("CPI y/y") == "cpi"
+    assert sc.news_profile_for("ISM Manufacturing PMI") == "default_high"
+    # Window per profil
+    assert sc.news_windows("fomc") == (60, 30, 60)
+    assert sc.news_windows("nfp") == (45, 20, 50)
+    assert sc.news_windows("cpi") == (45, 15, 50)
+    assert sc.news_windows("default_high") == (30, 10, 45)
+    # Fallback profil tak dikenal
+    assert sc.news_windows("nuklir") == (30, 10, 45)
+    ok("profil news: FOMC/NFP/CPI/default terklasifikasi benar")
+
+
+def test_news_window_event_specific():
+    """V3 P2: FOMC blackout 60 mnt (bukan 30 default), NFP quiet 20 mnt."""
+    from datetime import timedelta
+    now = datetime(2026, 9, 4, 12, 0, tzinfo=timezone.utc)
+    fomc = [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=50),
+             "title": "FOMC Statement"}]
+    assert sc.news_window(fomc, now)[0] == "blackout"   # 50 mnt < 60 FOMC
+    ism = [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=50),
+            "title": "ISM Manufacturing PMI"}]
+    assert sc.news_window(ism, now)[0] == "none"        # 50 mnt > 30 default
+    nfp = [{"impact": "High", "country": "USD", "time": now + timedelta(minutes=-15),
+            "title": "Non-Farm Employment Change"}]
+    assert sc.news_window(nfp, now)[0] == "quiet"       # 15 mnt < 20 quiet NFP
+    ok("blackout per event: FOMC 60 mnt, ISM 30 mnt, NFP quiet 20 mnt")
 
 
 def test_news_alert_due_once():
@@ -387,6 +422,8 @@ if __name__ == "__main__":
     test_backtest_returns_calibration_buckets()
     test_no_trigger_when_trend_choppy()
     test_news_window_phases()
+    test_news_profile_mapping()
+    test_news_window_event_specific()
     test_news_alert_due_once()
     test_momentum_m5_closed_matches_m15_on_clean_trend()
     test_structure_break_via_m5_news_mode()
