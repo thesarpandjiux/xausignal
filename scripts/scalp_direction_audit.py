@@ -384,7 +384,7 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         # Keputusan dibuat setelah candle M5 kandidat tutup, bukan saat mulai.
         ts = m5.index[i] + pd.Timedelta(minutes=5)
         if block_asia and ts.hour < sc.ASIA_BLOCK_UTC_UNTIL:
-            continue  # Match live early return before cooldown/setup mutation.
+            continue  # Legacy approximation: unlike live, skips range reset.
         # Index Dukascopy menandai awal candle. Pada ts keputusan, candle H1/M15
         # yang sedang berjalan belum punya close final; memasukkannya memberi
         # look-ahead bias. Hanya pakai candle yang sudah benar-benar tutup.
@@ -468,6 +468,92 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
                      "px": px})
     return pd.DataFrame(rows)
+
+
+def run_live_replay(h1, m15, m5, horizon=HORIZON_BARS, news_at=None, *,
+                    diagnostic_technical_only=False):
+    """Offline production-function replay; NOT full live parity.
+
+    news_at(now) returns (events, trusted), as known at that historical time.
+    Missing/failed/untrusted calendar blocks sends. Diagnostic mode explicitly
+    bypasses news, never fetches it. All accepted sends assume successful delivery.
+    Empty initial state; one evaluation per M5 close, no --force, no I/O.
+    Feed freshness, scheduler timing, delivery failures and fills are not replayed.
+    Input indices are timezone-aware candle OPEN timestamps.
+    """
+    if isinstance(horizon, bool) or not isinstance(horizon, (int, np.integer)) or horizon < 1:
+        raise ValueError("horizon must be a positive integer")
+    if not isinstance(diagnostic_technical_only, bool):
+        raise ValueError("diagnostic_technical_only must be boolean")
+    if news_at is not None and not callable(news_at):
+        raise ValueError("news_at must be callable or None")
+    if diagnostic_technical_only and news_at is not None:
+        raise ValueError("technical-only mode cannot accept historical news")
+    cost_r("LOSS", 1.0, 1.0)  # Validate costs even with empty inputs.
+    for frame in (h1, m15, m5):
+        if (not isinstance(frame.index, pd.DatetimeIndex) or frame.index.tz is None
+                or frame.index.hasnans or not frame.index.is_unique
+                or not frame.index.is_monotonic_increasing):
+            raise ValueError("frames require sorted unique timezone-aware timestamps")
+        if not {"open", "high", "low", "close"}.issubset(frame.columns):
+            raise ValueError("frames require OHLC columns")
+        if not np.isfinite(frame[["open", "high", "low", "close"]].to_numpy(dtype=float)).all():
+            raise ValueError("OHLC must be finite")
+    label = "diagnostic_technical_replay" if diagnostic_technical_only else "historical_news_replay"
+    rows, state = [], {}
+    for i in range(59, len(m5) - horizon):
+        ts = (m5.index[i] + pd.Timedelta(minutes=5)).tz_convert("UTC")
+        now = ts.to_pydatetime()
+        h1s = h1[h1.index + pd.Timedelta(hours=1) <= ts]
+        m15s = m15[m15.index + pd.Timedelta(minutes=15) <= ts]
+        m5s = m5.iloc[:i + 1]
+        if min(map(len, (h1s, m15s, m5s))) < 60 or not xs.market_open(now):
+            continue
+        mode, event = ("none" if diagnostic_technical_only else "blackout"), None
+        if news_at is not None:
+            try:
+                events, trusted = news_at(now)
+                if trusted is True:
+                    mode, event = sc.news_window(events, now)
+            except Exception:
+                mode, event = "blackout", None
+        sig = sc.build_scalp_signal(h1s, m15s, m5s, now, data_source=label,
+                                    news_mode=mode, news_event=event)
+        sc.reset_setup_if_inside_range(state, m15s)
+        ok, _ = sc.should_send(sig, state, now)
+        if sig.direction != "NO-TRADE" and mode in ("blackout", "quiet"):
+            ok = False
+        if not ok:
+            continue
+        # Virtual successful send only; reset above also persists when blocked.
+        state["last"] = {"id": sig.signal_id(), "time": now.isoformat(),
+                         "direction": sig.direction, "price": sig.price}
+        state["active_setup"] = {"id": sig.setup_id, "direction": sig.direction,
+                                 "level": sig.breakout_level}
+        direction = 1 if sig.direction == "BUY" else -1
+        px, sl, tp = sig.price, sig.stop_loss, sig.targets[0]
+        risk = abs(px - sl)
+        rr = direction * (tp - px) / risk
+        won = None
+        future = m5.iloc[i + 1:i + 1 + horizon]
+        for _, bar in future.iterrows():
+            if (bar["low"] <= sl if direction > 0 else bar["high"] >= sl):
+                won = False
+                break
+            if (bar["high"] >= tp if direction > 0 else bar["low"] <= tp):
+                won = True
+                break
+        outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
+        result = cost_r(outcome, rr, risk, entry=px,
+                        exit_price=float(future["close"].iloc[-1]), direction=direction)
+        rows.append(dict(t=ts, dir=sig.direction, grade=sig.grade, n=sig.n_triggers,
+                         won=won, outcome=outcome, r=result, px=px, sl=sl, tp=tp,
+                         risk=risk, news_mode=mode, label=label))
+    result = pd.DataFrame(rows, columns=["t", "dir", "grade", "n", "won", "outcome",
+                                        "r", "px", "sl", "tp", "risk", "news_mode", "label"])
+    result.attrs.update(historical_news=not diagnostic_technical_only and news_at is not None,
+                        assumed_successful_delivery=True, full_live_parity=False)
+    return result
 
 
 def run_retest(h1, m15, m5, horizon=HORIZON_BARS, wait_bars=6):
@@ -1034,7 +1120,10 @@ def main():
                    setup_dedup=CONTINUATION_ATR)
     print("── session_breakdown cond_slope_down (live) ──")
     session_stats(slope_df)
-    # Replay session gate before state changes; not a post-hoc trade filter.
+    print("diagnostic_technical_replay: NO historical news; assumed successful delivery; NOT full live parity")
+    stats(run_live_replay(h1, m15, m5, diagnostic_technical_only=True),
+          "diagnostic_technical_replay")
+    # Legacy approximation retained for cron consumers; NOT live state parity.
     session_gated = run(h1, m15, m5, conds["cond_slope_down"],
                         setup_dedup=CONTINUATION_ATR, block_asia=True)
     stats(session_gated, "slope_down_without_asia")
