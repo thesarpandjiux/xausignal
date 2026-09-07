@@ -40,7 +40,7 @@ def cost_r(outcome: str, r_raw: float, risk: float) -> float:
       TIMEOUT rugi cost/risk (keluar paksa di pasar, kena spread exit).
     Kalau cost ≥ risk, TP mustahil → selalu rugi (cost_r menanganinya)."""
     if not (SPREAD or SLIPPAGE) or risk <= 0:
-        return r_raw
+        return r_raw if outcome == "WIN" else -1.0 if outcome == "LOSS" else 0.0
     cost = SPREAD / 2 + SLIPPAGE
     c = cost / risk
     if outcome == "WIN":
