@@ -399,41 +399,34 @@ def news_windows(profile: str) -> tuple[int, int, int]:
 
 
 def news_window(events: list[dict], now: datetime) -> tuple[str, dict | None]:
-    """Klasifikasi fase news untuk event USD high-impact terdekat.
+    """Evaluasi semua event; prioritas blackout > quiet > aggressive > none.
     Return (fase, event): fase ∈ {blackout, quiet, aggressive, none}.
     blackout: ≤N mnt sebelum rilis (N per profil event — V3 P2).
     quiet:    ≤Q mnt setelah rilis (spread masih chaos, belum boleh entry).
     aggressive: +Q..+A mnt setelah rilis (mode ⚡ NEWS — entry lebih awal).
     Tidak ada look-ahead — semua murni waktu rilis dari kalender."""
-    evs = usd_high_events(events, now)
-    if not evs:
-        return "none", None
-    e = evs[0]
-    before, quiet, aggr = news_windows(news_profile_for(e["title"]))
-    d_min = (e["time"] - now).total_seconds() / 60
-    if 0 <= d_min <= before:
-        return "blackout", e                       # ≤before mnt sebelum rilis
-    if -quiet <= d_min < 0:
-        return "quiet", e                          # ≤quiet mnt setelah rilis
-    if -aggr <= d_min < -quiet:
-        return "aggressive", e                     # +quiet..+aggr mnt setelah
-    return "none", None
+    selected = ("none", None)
+    for e in usd_high_events(events, now):
+        before, quiet, aggr = news_windows(news_profile_for(e["title"]))
+        d_min = (e["time"] - now).total_seconds() / 60
+        if 0 <= d_min <= before:
+            return "blackout", e
+        if -quiet <= d_min < 0:
+            selected = ("quiet", e)
+        elif -aggr <= d_min < -quiet and selected[0] == "none":
+            selected = ("aggressive", e)
+    return selected
 
 
 def news_alert_due(events: list[dict], now: datetime,
                    state: dict) -> tuple[bool, dict | None]:
     """Alert countdown 30 mnt: kirim SEKALI per event (state 'alerted')."""
-    evs = usd_high_events(events, now, lookahead_h=1.0)
-    if not evs:
-        return False, None
-    e = evs[0]
-    d_min = (e["time"] - now).total_seconds() / 60
-    if not (0 < d_min <= NEWS_ALERT_MIN):
-        return False, None
-    key = f"alerted_{e['time'].isoformat()}"
-    if state.get(key):
-        return False, None
-    return True, e
+    for e in usd_high_events(events, now, lookback_h=0, lookahead_h=1.0):
+        d_min = (e["time"] - now).total_seconds() / 60
+        key = f"alerted_{e['time'].isoformat()}"
+        if 0 < d_min <= NEWS_ALERT_MIN and not state.get(key):
+            return True, e
+    return False, None
 
 
 # ─────────────────────────────── Backtest ───────────────────────────────────
