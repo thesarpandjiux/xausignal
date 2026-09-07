@@ -31,6 +31,17 @@ jobs:
       - name: Smoke tests
         run: python tests/smoke_test.py
 
+      - name: Scalp and audit regressions
+        run: |
+          python tests/scalp_test.py
+          python tests/news_overlap_test.py
+          for test in tests/audit_*_test.py; do
+            python "$test"
+          done
+
+      - name: Worker dispatch mock
+        run: node worker/worker_test.mjs
+
       - name: CLI flags
         run: |
           python xau_signal.py --demo
