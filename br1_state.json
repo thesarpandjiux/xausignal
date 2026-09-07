@@ -1310,6 +1310,12 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "277f49151d3e43ce53f4fd76a753a487b83324c5"
+    },
+    {
+      "time": "2026-09-07T22:46:08.075928+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "INVALID_OR_STALE_CLOSED_FEED",
+      "source_sha": "277f49151d3e43ce53f4fd76a753a487b83324c5"
     }
   ],
   "last_bar": "2026-09-07T21:55:00+00:00",
