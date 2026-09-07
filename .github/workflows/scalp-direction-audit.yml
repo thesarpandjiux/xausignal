@@ -1,137 +1,24 @@
 name: scalp-direction-audit
-
 on:
   workflow_dispatch:
-    inputs:
-      structure_lookback:
-        description: "Jumlah closed candle M15 untuk range structure break"
-        required: false
-        default: "20"
-      min_break_atr:
-        description: "Minimum jarak break dalam ATR M15"
-        required: false
-        default: "0"
-      momentum_mode:
-        description: "baseline, rsi_extreme_macd, atau rsi_30_80_macd"
-        required: false
-        default: "baseline"
-      rr:
-        description: "Risk reward TP1"
-        required: false
-        default: "1.2"
-      horizon_bars:
-        description: "Horizon evaluasi dalam candle M5"
-        required: false
-        default: "12"
-      continuation_atr:
-        description: "Kemajuan level minimum agar setup continuation dianggap baru"
-        required: false
-        default: "0.5"
-      min_body_atr:
-        description: "Body minimum candle breakout dalam ATR M15"
-        required: false
-        default: "0.3"
-      max_close_wick:
-        description: "Maksimum wick lawan arah sebagai fraksi range candle"
-        required: false
-        default: "0.25"
-      spread:
-        description: "Spread XAUUSD dalam poin dolar (cost model, 0=off)"
-        required: false
-        default: "0"
-      slippage:
-        description: "Slippage per sisi dalam poin dolar (cost model, 0=off)"
-        required: false
-        default: "0"
-
 permissions:
   contents: read
-
 jobs:
-  audit:
+  historical-data-only:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -r requirements.txt
-      - name: Ambil 5000 bar Dukascopy per timeframe
-        run: |
-          mkdir -p /tmp/scalp5000
-          python - <<'PY'
-          import time
-          from pathlib import Path
-          import datafeed
-          out = Path('/tmp/scalp5000')
-          for tf in ('1h', '15m', '5m'):
-              for attempt in range(1, 6):
-                  try:
-                      print(f'fetch {tf}, attempt {attempt}', flush=True)
-                      df = datafeed.from_dukascopy(tf, 5000)
-                      if len(df) < 4900:
-                          raise RuntimeError(f'bar kurang: {len(df)}')
-                      df.tail(5000).to_csv(out / f'ohlc_{tf}.csv')
-                      print(tf, len(df), df.index[0], df.index[-1], flush=True)
-                      break
-                  except Exception:
-                      if attempt == 5:
-                          raise
-                      time.sleep(10 * attempt)
-          # DXY (DOLLAR.IDX/USD) — macro context V3 P0#2 (measurement tahap 1)
-          import dukascopy_python
-          from dukascopy_python.instruments import INSTRUMENT_IDX_AMERICA_DOLLAR_IDX_USD
-          from datetime import datetime, timedelta, timezone
-          for attempt in range(1, 6):
-              try:
-                  print('fetch dxy_1h, attempt', attempt, flush=True)
-                  end = datetime.now(timezone.utc)
-                  start = end - timedelta(hours=5000 * 2.2)
-                  dxy = dukascopy_python.fetch(
-                      INSTRUMENT_IDX_AMERICA_DOLLAR_IDX_USD,
-                      dukascopy_python.INTERVAL_HOUR_1,
-                      dukascopy_python.OFFER_SIDE_BID, start, end)
-                  if dxy is None or len(dxy) < 4900:
-                      raise RuntimeError(f'dxy bar kurang: {0 if dxy is None else len(dxy)}')
-                  df2 = datafeed._normalize(dxy).tail(5000)
-                  df2.to_csv(out / 'ohlc_dxy_1h.csv')
-                  print('dxy_1h', len(df2), df2.index[0], df2.index[-1], flush=True)
-                  break
-              except Exception:
-                  if attempt == 5:
-                      raise
-                  time.sleep(10 * attempt)
-          PY
-      - name: Audit arah BUY SELL
-        env:
-          SCALP_AUDIT_CACHE: /tmp/scalp5000
-          SCALP_STRUCTURE_LOOKBACK: ${{ inputs.structure_lookback || '20' }}
-          SCALP_MIN_BREAK_ATR: ${{ inputs.min_break_atr || '0' }}
-          SCALP_MOMENTUM_MODE: ${{ inputs.momentum_mode || 'baseline' }}
-          SCALP_AUDIT_RR: ${{ inputs.rr || '1.2' }}
-          SCALP_HORIZON_BARS: ${{ inputs.horizon_bars || '12' }}
-          SCALP_CONTINUATION_ATR: ${{ inputs.continuation_atr || '0.5' }}
-          SCALP_MIN_BODY_ATR: ${{ inputs.min_body_atr || '0.3' }}
-          SCALP_MAX_CLOSE_WICK: ${{ inputs.max_close_wick || '0.25' }}
-          SCALP_AUDIT_SPREAD: ${{ inputs.spread || '0' }}
-          SCALP_AUDIT_SLIPPAGE: ${{ inputs.slippage || '0' }}
-        shell: bash
-        run: |
-          set -o pipefail
-          mkdir -p audit-comparison
-          cp "$GITHUB_EVENT_PATH" audit-comparison/workflow-inputs.json
-          python scripts/scalp_direction_audit.py --compare-only | tee same-snapshot-comparison.txt
-          python scripts/scalp_direction_audit.py | tee scalp-direction-audit.txt
+          python-version: '3.12'
+      - run: pip install pandas dukascopy-python certifi
+      - run: python audit-h1-validation/check_window.py
+      - run: python audit-h1-validation/fetch_window.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: scalp-direction-audit
-          path: |
-            scalp-direction-audit.txt
-            same-snapshot-comparison.txt
-            audit-comparison/
-            /tmp/scalp5000/
+          name: h1-cross-period-data
+          path: audit-h1-validation/
           if-no-files-found: error
           retention-days: 30
