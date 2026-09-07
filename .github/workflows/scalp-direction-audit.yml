@@ -120,9 +120,18 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          mkdir -p audit-comparison
+          cp "$GITHUB_EVENT_PATH" audit-comparison/workflow-inputs.json
+          python scripts/scalp_direction_audit.py --compare-only | tee same-snapshot-comparison.txt
           python scripts/scalp_direction_audit.py | tee scalp-direction-audit.txt
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: scalp-direction-audit
-          path: scalp-direction-audit.txt
+          path: |
+            scalp-direction-audit.txt
+            same-snapshot-comparison.txt
+            audit-comparison/
+            /tmp/scalp5000/
+          if-no-files-found: error
           retention-days: 30

@@ -3,6 +3,11 @@
 Tidak mengubah file produksi. Data dari cache kalibrasi (Dukascopy 5000 bar).
 """
 import sys
+import json
+import hashlib
+import subprocess
+from copy import deepcopy
+from dataclasses import asdict
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -372,7 +377,7 @@ def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
 
 def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         momentum_on="m15", trend_fn=None, sl_mode="atr",
-        struct_buffer_atr=0.25, block_asia=False):
+        struct_buffer_atr=0.25, block_asia=False, trace=None):
     """sl_mode: "atr" (default) = SL 0.8 ATR M5 — perilaku lama.
     "struct" = SL di luar level struktur yang ditembus ± buffer ATR M15
     (V3 Risk Management: SL = beyond invalidation structure). Kalau SL
@@ -383,7 +388,11 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
     for i in range(120, len(m5) - horizon):
         # Keputusan dibuat setelah candle M5 kandidat tutup, bukan saat mulai.
         ts = m5.index[i] + pd.Timedelta(minutes=5)
+        observation: dict = dict(t=ts.isoformat(), reason="warmup", accepted=False)
+        if trace is not None:
+            trace.append(observation)
         if block_asia and ts.hour < sc.ASIA_BLOCK_UTC_UNTIL:
+            observation["reason"] = "asia"
             continue  # Legacy approximation: unlike live, skips range reset.
         # Index Dukascopy menandai awal candle. Pada ts keputusan, candle H1/M15
         # yang sedang berjalan belum punya close final; memasukkannya memberi
@@ -397,7 +406,9 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
             inside = close <= active_level if active_dir == "BUY" else close >= active_level
             if inside:
                 active_by_direction.pop(active_dir)
+        observation.update(state=dict(last=last_by_direction.copy(), active=active_by_direction.copy()))
         direction = direction_fn(h1s, m15s)
+        observation.update(direction=direction, reason="direction_gate")
         if direction == 0:
             continue
         dirn = "BUY" if direction > 0 else "SELL"
@@ -410,6 +421,7 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
                 level >= active + setup_dedup * atr_m15 if direction > 0
                 else level <= active - setup_dedup * atr_m15)
             if not advanced:
+                observation["reason"] = "setup_continuation"
                 continue
         m5s = m5.iloc[:i + 1]
         trend_direction, trend_trigger = (trend_fn(h1s) if trend_fn
@@ -420,6 +432,7 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         # H1 tetap wajib sebagai regime gate, tetapi tidak wajib searah kecuali baseline.
         regime_ok = trend_direction != 0
         n = int(regime_ok) + int(momentum_ok) + int(sweep.passed)
+        observation.update(reason="trigger_score", regime_ok=regime_ok, momentum_ok=bool(momentum_ok), sweep_ok=bool(sweep.passed), n=n)
         if n < sc.MIN_TRIGGERS:
             continue
         px = float(m5s["close"].iloc[-1])
@@ -440,7 +453,9 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         risk = abs(px - sl)
         tp1 = px + direction * AUDIT_RR * risk
         if dirn in last_by_direction and ts - last_by_direction[dirn] < pd.Timedelta(minutes=45):
+            observation['reason'] = 'per_direction_cooldown'
             continue
+        observation.update(reason='ok', accepted=True)
         last_by_direction[dirn] = ts
         if setup_dedup is not None:
             active_by_direction[dirn] = level
@@ -466,12 +481,12 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
                             direction=direction)
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
-                     "px": px})
+                     "px": px, "sl": sl, "tp": tp1, "risk": risk})
     return pd.DataFrame(rows)
 
 
 def run_live_replay(h1, m15, m5, horizon=HORIZON_BARS, news_at=None, *,
-                    diagnostic_technical_only=False):
+                    diagnostic_technical_only=False, trace=None):
     """Offline production-function replay; NOT full live parity.
 
     news_at(now) returns (events, trusted), as known at that historical time.
@@ -520,7 +535,10 @@ def run_live_replay(h1, m15, m5, horizon=HORIZON_BARS, news_at=None, *,
         sig = sc.build_scalp_signal(h1s, m15s, m5s, now, data_source=label,
                                     news_mode=mode, news_event=event)
         sc.reset_setup_if_inside_range(state, m15s)
-        ok, _ = sc.should_send(sig, state, now)
+        ok, reason = sc.should_send(sig, state, now)
+        if trace is not None:
+            trace.append(dict(t=ts.isoformat(), accepted=bool(ok), reason=reason,
+                              signal=asdict(sig), state=deepcopy(state)))
         if sig.direction != "NO-TRADE" and mode in ("blackout", "quiet"):
             ok = False
         if not ok:
@@ -809,6 +827,108 @@ def run_early(h1, m15, m5, horizon=HORIZON_BARS):
                             exit_price=float(m5["close"].iloc[i + horizon]),
                             direction=direction)})
     return pd.DataFrame(rows)
+
+
+def compare_ledgers(production, legacy):
+    """Exact UTC decision/direction join; DD is entry-ordered, not account equity."""
+    frames = []
+    for source in (production, legacy):
+        df = source.copy()
+        if df.empty:
+            df = df.reindex(columns=list(dict.fromkeys([*df.columns, 't', 'dir', 'r'])))
+        df['t'] = pd.to_datetime(df['t'], utc=True)
+        if (df['t'].isna().any() or not df['dir'].isin(['BUY', 'SELL']).all()
+                or not np.isfinite(df['r'].to_numpy(dtype=float)).all()
+                or df.duplicated(['t', 'dir']).any()):
+            raise ValueError('ledger requires unique UTC decision/direction and finite R')
+        frames.append(df.sort_values(['t', 'dir']).set_index(['t', 'dir']))
+    p, l = frames
+    common = p.index.intersection(l.index)
+    groups = dict(production=p, legacy=l, common_production=p.loc[common],
+                  common_legacy=l.loc[common], production_only=p.loc[p.index.difference(l.index)],
+                  legacy_only=l.loc[l.index.difference(p.index)])
+    metrics = {}
+    for name, group in groups.items():
+        metrics[name] = {}
+        for side in ('ALL', 'BUY', 'SELL'):
+            g = group if side == 'ALL' else group[group.index.get_level_values('dir') == side]
+            r = g.sort_index()['r'].astype(float)
+            loss = -r[r < 0].sum()
+            eq = r.cumsum()
+            metrics[name][side] = dict(n=len(r), total_r=float(r.sum()),
+                exp_r=float(r.mean()) if len(r) else None,
+                pf=float(r[r > 0].sum() / loss) if loss > 0 else None,
+                max_entry_order_dd_r=float((eq.cummax().clip(lower=0) - eq).max()) if len(r) else None)
+    return dict(counts=dict(common=len(common), production_only=len(groups['production_only']),
+                            legacy_only=len(groups['legacy_only'])), metrics=metrics)
+
+
+def export_comparison(h1, m15, m5, out, horizon=HORIZON_BARS):
+    """Freeze inputs before replay; preserve Python float precision in JSON."""
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    def save(name, data):
+        (out / name).write_text(json.dumps(data, default=str, indent=2, allow_nan=False) + '\n')
+    config = dict(rr=AUDIT_RR, production_rr=sc.MIN_RR, continuation_atr=CONTINUATION_ATR,
+                  production_continuation_atr=0.75, horizon=horizon, spread=SPREAD,
+                  slippage_per_side=SLIPPAGE, structure_lookback=STRUCTURE_LOOKBACK,
+                  min_break_atr=MIN_BREAK_ATR, momentum_mode=MOMENTUM_MODE,
+                  asia_until=sc.ASIA_BLOCK_UTC_UNTIL, atr_sl_mult=sc.ATR_SL_MULT,
+                  min_triggers=sc.MIN_TRIGGERS, legacy_block_asia=True,
+                  legacy_direction='cond_slope_down', historical_news=False,
+                  initial_state={}, assumed_successful_delivery=True,
+                  git_sha=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
+                  run_id=_os.environ.get('GITHUB_RUN_ID'), python=sys.version,
+                  pandas=pd.__version__, numpy=np.__version__)
+    save('config.json', config)
+    for tf, frame in (('1h', h1), ('15m', m15), ('5m', m5)):
+        source = CACHE / f'ohlc_{tf}.csv'
+        if source.exists():
+            (out / f'raw_ohlc_{tf}.csv').write_bytes(source.read_bytes())
+        frame.to_csv(out / f'ohlc_{tf}.csv')
+    production_trace, legacy_trace = [], []
+    production = run_live_replay(h1, m15, m5, horizon=horizon,
+                                diagnostic_technical_only=True, trace=production_trace)
+    legacy = run(h1, m15, m5, lambda h, m: direction_struct_cond_veto(h, m, allow_ema20_slope_down),
+                 horizon=horizon, setup_dedup=CONTINUATION_ATR, block_asia=True, trace=legacy_trace)
+    report: dict = compare_ledgers(production, legacy)
+    for name, frame in (('production', production), ('legacy', legacy)):
+        save(name + '.json', frame.to_dict('records'))
+        frame.to_csv(out / (name + '.csv'), index=False)
+    save('production_trace.json', production_trace)
+    save('legacy_trace.json', legacy_trace)
+    pkeys = {(t.isoformat(), d) for t, d in production.reindex(columns=['t', 'dir']).itertuples(index=False, name=None)}
+    lkeys = {(t.isoformat(), d) for t, d in legacy.reindex(columns=['t', 'dir']).itertuples(index=False, name=None)}
+    pt, lt = ({r['t']: r for r in trace} for trace in (production_trace, legacy_trace))
+    differences = []
+    for t, direction in sorted(pkeys ^ lkeys):
+        differences.append(dict(t=t, direction=direction,
+            bucket='production_only' if (t, direction) in pkeys else 'legacy_only',
+            production=pt.get(t), legacy=lt.get(t)))
+    save('differences.json', differences)
+    report['proximate_reasons'] = {}
+    for item in differences:
+        other = item['legacy'] if item['bucket'] == 'production_only' else item['production']
+        reason = other['reason'] if other is not None else 'not_evaluated_warmup_or_market_closed'
+        key = item['bucket'] + ': ' + reason
+        report['proximate_reasons'][key] = report['proximate_reasons'].get(key, 0) + 1
+    report['limitations'] = [
+        'New snapshot, not exact replication of run 34098761452; previous raw candles unavailable.',
+        'Technical diagnostic only: no historical news; empty state; successful delivery assumed.',
+        'M5-close decisions; completed candles; fixed spread+2*slippage; no commission or real fills.',
+        'SL-first same-bar ties; timeout final horizon close; DD entry-ordered R, not realized/MTM account equity.',
+        'Unmatched sets and proximate branch reasons do not establish causal filter benefit.',
+        'PF null means no losses or empty sample; retrospective buckets are not untouched holdout.',
+        'Production uses single last/active_setup; legacy uses per-direction maps, skips Asia reset.',
+        'Legacy scores H1 nonzero regime (not a hard mandatory gate); production scores structure break.'
+    ]
+    save('comparison.json', report)
+    (out / 'report.md').write_text('# Same-snapshot audit\n\n' + '\n'.join('- ' + s for s in report['limitations'])
+                                  + '\n\n```json\n' + json.dumps(report, indent=2) + '\n```\n')
+    save('sha256.json', {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                        for p in sorted(out.iterdir()) if p.is_file() and p.name != 'sha256.json'})
+    print(json.dumps(report, indent=2))
+    return report
 
 
 def stats(df, name):
@@ -1153,4 +1273,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--compare-only" in sys.argv:
+        export_comparison(load("1h"), load("15m"), load("5m"),
+                          Path(_os.environ.get("SCALP_AUDIT_OUTPUT", "audit-comparison")))
+    else:
+        main()
