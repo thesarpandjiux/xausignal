@@ -133,7 +133,8 @@ def trend_h1(h1: pd.DataFrame) -> tuple[int, Trigger]:
 
 
 def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame,
-                        m5: pd.DataFrame | None = None) -> tuple[int, Trigger]:
+                        m5: pd.DataFrame | None = None, *,
+                        audit_bypass_h1: bool = False) -> tuple[int, Trigger]:
     """Arah dari break close M15 atas/bawah 20 candle; H1 hanya veto ekstrem.
     Mode news (m5 diberikan): deteksi break juga dari close M5 terakhir yang
     menembus level M15 — reaksi tiap 5 mnt, tidak nunggu candle M15 tutup.
@@ -168,7 +169,7 @@ def structure_direction(h1: pd.DataFrame, m15: pd.DataFrame,
     if (m5 is None and extreme == 1 and m15_dir == -1):
         e20_series = e20
         slope_down = float(e20_series.iloc[-1]) < float(e20_series.iloc[-4])
-        if not slope_down:
+        if not slope_down and not audit_bypass_h1:
             return 0, Trigger("Structure Break M15", False,
                               f"break diveto tren H1 ekstrem ({gap:+.2f} ATR, "
                               f"slope EMA20 belum turun)")
@@ -294,7 +295,8 @@ def gate_telemetry(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
 def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                         now: datetime, data_source: str = "",
                         news_mode: str = "none",
-                        news_event: dict | None = None) -> ScalpSignal:
+                        news_event: dict | None = None, *,
+                        audit_bypass_h1: bool = False) -> ScalpSignal:
     news_use_m5 = news_mode == "aggressive"   # ⚡ NEWS: pakai close M5 utk break
     # Session gate (V3 P1): blok semua sinyal sesi Asia (0-6 UTC) — audit
     # 5000 bar: Asia exp -0.207 vs overlap +0.892; tanpa Asia +0.168→+0.350.
@@ -304,7 +306,8 @@ def build_scalp_signal(h1: pd.DataFrame, m15: pd.DataFrame, m5: pd.DataFrame,
                            n_triggers=0, triggers=[], price=0.0, atr=0.0,
                            data_source=data_source)
     direction, trend_trig = structure_direction(
-        h1, m15, m5 if news_use_m5 else None)
+        h1, m15, m5 if news_use_m5 else None,
+        audit_bypass_h1=audit_bypass_h1)
     px = float(m5["close"].iloc[-1])
     a = float(xs.atr(m5).iloc[-1])
 
@@ -652,14 +655,23 @@ def main() -> int:
         m15, _ = xs.get_ohlc(TF_MOMENTUM, prefer=prefer)
         m5, src = xs.get_ohlc(TF_ENTRY, prefer=prefer)
     else:
-        feeds = [datafeed.get_ohlc(tf, xs.BARS) for tf in
-                 (TF_TREND, TF_MOMENTUM, TF_ENTRY)]
-        validate_live_feeds(feeds, now)
-        h1, m15, m5 = [closed_frame(f, tf, now) for f, tf in
-                       zip(feeds, (TF_TREND, TF_MOMENTUM, TF_ENTRY))]
-        if min(map(len, (h1, m15, m5))) < 60:
-            raise RuntimeError("candle closed tidak cukup untuk evaluasi")
-        src = feeds[-1].label()
+        try:
+            feeds = [datafeed.get_ohlc(tf, xs.BARS) for tf in
+                     (TF_TREND, TF_MOMENTUM, TF_ENTRY)]
+            validate_live_feeds(feeds, now)
+            h1, m15, m5 = [closed_frame(f, tf, now) for f, tf in
+                           zip(feeds, (TF_TREND, TF_MOMENTUM, TF_ENTRY))]
+            if min(map(len, (h1, m15, m5))) < 60:
+                raise RuntimeError("candle closed tidak cukup untuk evaluasi")
+            src = feeds[-1].label()
+        except Exception as ex:
+            if not args.dry_run:
+                try:
+                    import veto_telemetry
+                    veto_telemetry.unavailable(BASE, now, 'DATA', str(ex))
+                except Exception as audit_ex:
+                    print(f"::error::veto telemetry failed: {audit_ex}", file=sys.stderr)
+            raise
 
     if args.backtest:
         print("Menjalankan backtest scalp…")
@@ -675,6 +687,12 @@ def main() -> int:
         return 0
 
     if not args.force and not xs.market_open(now):
+        if not args.dry_run:
+            try:
+                import veto_telemetry
+                veto_telemetry.unavailable(BASE, now, "MARKET_CLOSED", "Pasar tutup")
+            except Exception as ex:
+                print(f"::error::veto telemetry failed: {ex}", file=sys.stderr)
         print("Pasar tutup.")
         return 0
 
@@ -726,6 +744,14 @@ def main() -> int:
         else:
             phase = "blackout (kalender tak tepercaya)"
         reason = f"news gate: {phase}"
+
+    if not args.dry_run:
+        try:
+            import veto_telemetry
+            veto_telemetry.observe(BASE, h1, m15, m5, now, src, news_mode,
+                                   news_ev, sig, state, ok, reason)
+        except Exception as ex:
+            print(f"::error::veto telemetry failed: {ex}", file=sys.stderr)
 
     if args.dry_run:
         for t in ("<b>", "</b>", "<i>", "</i>"):

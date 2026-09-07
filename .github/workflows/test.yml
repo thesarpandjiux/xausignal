@@ -34,6 +34,7 @@ jobs:
       - name: Scalp and audit regressions
         run: |
           python tests/scalp_test.py
+          python tests/veto_telemetry_test.py
           python tests/news_overlap_test.py
           for test in tests/audit_*_test.py; do
             python "$test"

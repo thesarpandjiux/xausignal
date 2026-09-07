@@ -77,7 +77,8 @@ def save_journal(rows: dict) -> None:
             w.writerow({k: r.get(k, "") for k in JOURNAL_COLS})
 
 
-def resolve(sig: pd.Series, price: pd.DataFrame) -> tuple[str, float, str, str]:
+def resolve(sig: pd.Series, price: pd.DataFrame, *,
+            horizon_h: float = HORIZON_H) -> tuple[str, float, str, str]:
     """
     Tentukan hasil satu sinyal. Return (outcome, hasil_R, waktu_tutup, catatan).
 
@@ -86,7 +87,7 @@ def resolve(sig: pd.Series, price: pd.DataFrame) -> tuple[str, float, str, str]:
     dan menebak ke arah yang menguntungkan akan membuat statistik terlalu manis.
     """
     t0 = sig["time"]
-    fwd = price[(price.index > t0) & (price.index <= t0 + timedelta(hours=HORIZON_H))]
+    fwd = price[(price.index > t0) & (price.index <= t0 + timedelta(hours=horizon_h))]
     if fwd.empty:
         return "PENDING", 0.0, "", "belum ada data setelah sinyal"
 
@@ -108,10 +109,10 @@ def resolve(sig: pd.Series, price: pd.DataFrame) -> tuple[str, float, str, str]:
     last = float(fwd["close"].iloc[-1])
     risk = abs(entry - sl)
     r = ((last - entry) if buy else (entry - last)) / risk if risk else 0.0
-    if fwd.index[-1] < t0 + timedelta(hours=HORIZON_H):
+    if fwd.index[-1] < t0 + timedelta(hours=horizon_h):
         elapsed = (fwd.index[-1] - t0).total_seconds() / 3600
         return "PENDING", 0.0, "", f"baru {elapsed:.1f} jam berjalan"
-    return "TIMEOUT", round(r, 2), fwd.index[-1].isoformat(), f"{HORIZON_H:g}j tanpa TP/SL"
+    return "TIMEOUT", round(r, 2), fwd.index[-1].isoformat(), f"{horizon_h:g}j tanpa TP/SL"
 
 
 def cmd_update() -> int:
