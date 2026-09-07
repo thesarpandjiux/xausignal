@@ -1332,9 +1332,22 @@
     {
       "time": "2026-09-07T23:01:14.366595+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-09-07T23:06:10.906985+00:00",
+      "bar_close": "2026-09-07T23:05:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "dukascopy",
+      "source_sha": "277f49151d3e43ce53f4fd76a753a487b83324c5",
+      "last_closed": {
+        "h1": "2026-09-07T23:00:00+00:00",
+        "m15": "2026-09-07T23:00:00+00:00",
+        "m5": "2026-09-07T23:05:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-07T23:00:00+00:00",
+  "last_bar": "2026-09-07T23:05:00+00:00",
   "last_source": "dukascopy",
-  "reason": "cancel"
+  "reason": "idle"
 }
