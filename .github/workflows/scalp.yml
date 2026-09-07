@@ -76,6 +76,23 @@ jobs:
           JOURNAL_INCLUDE_UNSENT: "true"
         run: python journal.py update
 
+      - name: Catat BR1 forward shadow (tanpa Telegram)
+        if: always()
+        continue-on-error: true
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          XAU_HOME: /tmp/botscalp
+        run: python br1_shadow.py
+
+      - name: Bukti BR1 forward
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: br1-forward-${{ github.run_id }}
+          path: /tmp/botscalp/br1_state.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Simpan state
         if: always()
         env:
