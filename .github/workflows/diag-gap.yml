@@ -1,0 +1,35 @@
+name: diag-gap
+
+# Diagnosis: kenapa swing live (regime bull, 400 bar) hampir tak pernah lolos,
+# padahal backtest 5000 bar lolos ~31%. Menjalankan diag_gap.py di GH Actions
+# (Dukascopy hanya jalan di sana). Read-only, dispatch-only, tanpa jadwal.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Diagnosis gap backtest-vs-live
+        env:
+          XAU_HOME: /tmp/botdata
+        run: |
+          mkdir -p /tmp/botdata
+          python diag_gap.py 2>&1 | tee diag-gap.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diag-gap
+          path: diag-gap.txt
+          retention-days: 30
