@@ -45,7 +45,8 @@
       "cost_price": 0.5,
       "entry_latency_seconds": 80.242322,
       "news_mode": "none",
-      "news_event": null
+      "news_event": null,
+      "coverage": "missing/noncontiguous bars; pending"
     }
   },
   "decisions": [
@@ -139,9 +140,22 @@
         "m15": "2026-09-07T14:45:00+00:00",
         "m5": "2026-09-07T14:50:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-07T14:56:09.011991+00:00",
+      "bar_close": "2026-09-07T14:55:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
+      "last_closed": {
+        "h1": "2026-09-07T14:00:00+00:00",
+        "m15": "2026-09-07T14:45:00+00:00",
+        "m5": "2026-09-07T14:55:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-07T14:50:00+00:00",
+  "last_bar": "2026-09-07T14:55:00+00:00",
   "last_source": "cache",
-  "reason": "accepted"
+  "reason": "idle"
 }
