@@ -737,7 +737,7 @@ def stats(df, name):
     pf = gross_win / gross_loss if gross_loss > 0 else float("inf")
     # Max drawdown dari equity curve kumulatif R (urut waktu).
     eq = df["r"].cumsum()
-    dd = (eq.cummax() - eq).max()
+    dd = (eq.cummax().clip(lower=0) - eq).max()
     print(f"{name}: n={total} win={win:.1f}% exp_r={exp:+.3f} pf={pf:.2f} "
           f"maxDD={dd:.2f}R "
           f"WIN={outcomes.get('WIN', 0)} LOSS={outcomes.get('LOSS', 0)} "
@@ -801,7 +801,7 @@ def analyze_dxy(dxy_h1: pd.DataFrame, h1: pd.DataFrame,
     rows = []
     for _, s in slope_df.iterrows():
         # ambil bar DXY tepat sebelum sinyal (no look-ahead)
-        past = dxy_h1[dxy_h1.index <= s["t"]]
+        past = dxy_h1[dxy_h1.index + pd.Timedelta(hours=1) <= s["t"]]
         if past.empty:
             rows.append("na")
             continue
@@ -844,7 +844,7 @@ def analyze_regime(m15: pd.DataFrame, slope_df: pd.DataFrame,
     q66 = exp_q(0.66)
     buckets = []
     for _, s in slope_df.iterrows():
-        past = atr_m15[atr_m15.index <= s["t"]]
+        past = atr_m15[atr_m15.index + pd.Timedelta(minutes=15) <= s["t"]]
         if len(past) < 200:
             buckets.append("na")
             continue
