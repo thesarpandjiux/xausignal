@@ -859,7 +859,7 @@ def save_state(s: dict) -> None:
 # dan journal.py gagal SENYAP (bukan "tidak ada data", tapi crash tertutup).
 SIGNAL_COLS = ["time", "id", "direction", "grade", "composite", "tech", "news",
                "price", "entry", "sl", "tp1", "tp2", "tp3", "rr1",
-               "confirms", "sent", "source", "trigger"]
+               "confirms", "sent", "source", "trigger", "veto_reason"]
 
 
 def _migrate_signal_log() -> None:
@@ -915,7 +915,8 @@ def log_signal(sig: Signal, sent: bool, trigger: str = "auto") -> None:
         round(sig.stop_loss, 2),
         *[round(t, 2) if t is not None else "" for t in tps],
         round(sig.rr[0], 2) if sig.rr else "", sig.n_confirms, sent,
-        sig.data_source.split(" (")[0], trigger]))
+        sig.data_source.split(" (")[0], trigger,
+        sig.invalidation if sig.direction == "NO-TRADE" else ""]))
     with LOG_FILE.open("a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=SIGNAL_COLS)
         if new:
