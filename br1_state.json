@@ -314,9 +314,13 @@
     {
       "time": "2026-09-07T16:01:35.083324+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-09-07T16:06:13.746112+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-07T16:00:00+00:00",
-  "last_source": "dukascopy",
+  "last_bar": "2026-09-07T16:05:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }
