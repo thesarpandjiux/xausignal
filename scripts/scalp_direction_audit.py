@@ -31,23 +31,26 @@ SPREAD = float(_os.environ.get("SCALP_AUDIT_SPREAD", "0"))
 SLIPPAGE = float(_os.environ.get("SCALP_AUDIT_SLIPPAGE", "0"))
 
 
-def cost_r(outcome: str, r_raw: float, risk: float) -> float:
-    """R setelah biaya eksekusi. risk = jarak entry ke SL (poin).
-
-    BUY: entry aktual = sinyal + spread/2 + slippage (beli di ask, slip).
-    SELL: entry aktual = sinyal − spread/2 − slippage.
-    → win dapat RR dikurangi cost/risk; loss bayar 1 + cost/risk;
-      TIMEOUT rugi cost/risk (keluar paksa di pasar, kena spread exit).
-    Kalau cost ≥ risk, TP mustahil → selalu rugi (cost_r menanganinya)."""
-    if not (SPREAD or SLIPPAGE) or risk <= 0:
-        return r_raw if outcome == "WIN" else -1.0 if outcome == "LOSS" else 0.0
-    cost = SPREAD / 2 + SLIPPAGE
-    c = cost / risk
+def cost_r(outcome: str, r_raw: float, risk: float, *,
+           entry=None, exit_price=None, direction=None) -> float:
+    """Cost overlay: full spread + slippage per side, in price units.
+    TIMEOUT is marked to final horizon close (forced-exit simulation).
+    ponytail: fixed costs, no commission/gap/bid-ask trigger simulation;
+    upgrade to quote-level fills before treating results as executable PnL.
+    """
+    if not all(np.isfinite(v) for v in (risk, r_raw, SPREAD, SLIPPAGE)) or risk <= 0 or min(SPREAD, SLIPPAGE) < 0:
+        raise ValueError("Invalid risk, RR or execution costs")
     if outcome == "WIN":
-        return r_raw - c
-    if outcome == "LOSS":
-        return -1.0 - c
-    return -c
+        gross = r_raw
+    elif outcome == "LOSS":
+        gross = -1.0
+    elif outcome == "TIMEOUT":
+        if entry is None or exit_price is None or direction not in (-1, 1) or not all(np.isfinite(v) for v in (entry, exit_price)):
+            raise ValueError("TIMEOUT requires finite entry/exit and direction")
+        gross = direction * (exit_price - entry) / risk
+    else:
+        raise ValueError("Unknown outcome")
+    return gross - (SPREAD + 2 * SLIPPAGE) / risk
 
 
 def load(tf):
@@ -456,7 +459,9 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
                     won = True
                     break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
-        r_result = cost_r(outcome, AUDIT_RR, risk)
+        r_result = cost_r(outcome, AUDIT_RR, risk, entry=px,
+                            exit_price=float(m5["close"].iloc[i + horizon]),
+                            direction=direction)
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
                      "px": px})
@@ -514,7 +519,9 @@ def run_retest(h1, m15, m5, horizon=HORIZON_BARS, wait_bars=6):
         risk = abs(px - sl)
         rows.append({"t": ts, "dir": dirn, "grade": "RETEST", "n": 2,
                      "won": won, "outcome": outcome,
-                     "r": cost_r(outcome, AUDIT_RR, risk)})
+                     "r": cost_r(outcome, AUDIT_RR, risk, entry=px,
+                            exit_price=float(m5["close"].iloc[i + horizon]),
+                            direction=direction)})
         pending = None
     return pd.DataFrame(rows)
 
@@ -635,7 +642,9 @@ def run_intrabar(h1, m15, m5, horizon=HORIZON_BARS, setup_dedup=CONTINUATION_ATR
                     won = True
                     break
         outcome = "TIMEOUT" if won is None else "WIN" if won else "LOSS"
-        r_result = cost_r(outcome, AUDIT_RR, risk)
+        r_result = cost_r(outcome, AUDIT_RR, risk, entry=px,
+                            exit_price=float(m5["close"].iloc[i + horizon]),
+                            direction=direction)
         rows.append({"t": ts, "dir": dirn, "grade": {3: "A", 2: "B"}[n],
                      "n": n, "won": won, "outcome": outcome, "r": r_result,
                      "age_min": age})
@@ -708,7 +717,9 @@ def run_early(h1, m15, m5, horizon=HORIZON_BARS):
         risk = abs(px - sl)
         rows.append({"t": ts, "dir": dirn, "grade": "EARLY", "n": 2,
                      "won": won, "outcome": outcome,
-                     "r": cost_r(outcome, AUDIT_RR, risk)})
+                     "r": cost_r(outcome, AUDIT_RR, risk, entry=px,
+                            exit_price=float(m5["close"].iloc[i + horizon]),
+                            direction=direction)})
     return pd.DataFrame(rows)
 
 
