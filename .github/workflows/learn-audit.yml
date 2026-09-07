@@ -1,0 +1,87 @@
+name: learn-audit
+
+# Audit jujur swing dari nol: walkforward + ablasi + kalibrasi 5000 bar.
+# Read-only terhadap produksi. Tidak ada schedule — hanya workflow_dispatch.
+# Menjalankan learn.py yang selama ini TIDAK pernah dipicu oleh workflow apa pun.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Audit swing 5000 bar (power, walkforward, ablation, calibration)
+        env:
+          XAU_HOME: /tmp/botdata
+        run: |
+          mkdir -p /tmp/botdata
+          {
+            echo "=== POWER ==="
+            python learn.py power
+            echo
+            echo "=== WALKFORWARD ==="
+            python learn.py walkforward
+            echo
+            echo "=== ABLATION ==="
+            python learn.py ablation
+            echo
+            echo "=== CALIBRATION ==="
+            python learn.py calibration
+            echo
+            echo "=== BUILD-CALIB (5000 bar) ==="
+            python learn.py build-calib
+          } 2>&1 | tee learn-audit.txt
+
+      - name: Gate dump — kenapa swing tak pernah lolos
+        env:
+          XAU_HOME: /tmp/botdata
+        run: |
+          python - <<'PY' 2>&1 | tee gate-dump.txt
+          import datafeed, xau_signal as x
+          from collections import Counter
+          h1 = datafeed.get_ohlc("1h", 5000, prefer="dukascopy").df
+          h4 = datafeed.get_ohlc("4h", 3000, prefer="dukascopy").df
+          d1 = datafeed.get_ohlc("1d", 1500, prefer="dukascopy").df
+          veto = Counter(); score_dist = Counter(); grade = Counter(); n = 0; sent = 0
+          for i in range(260, len(h1), 1):
+              e = h1.iloc[max(0, i-399):i+1]; ts = e.index[-1]
+              b = h4[h4.index <= ts].tail(400); m = d1[d1.index <= ts].tail(400)
+              if len(b) < 210 or len(m) < 60:
+                  continue
+              sig = x.build_signal(b, e, m, [], ts.to_pydatetime(), {})
+              n += 1
+              score_dist[f"{int(sig.composite//10)*10}"] += 1
+              if sig.direction == "NO-TRADE":
+                  for c in sig.checks:
+                      if c.mandatory and not c.passed:
+                          veto[c.name] += 1
+                  if not sig.checks and sig.composite < x.THRESHOLD and sig.composite > -x.THRESHOLD:
+                      veto["SKOR < THRESHOLD"] += 1
+                  if sig.n_confirms < x.MIN_CONFIRMS:
+                      veto[f"KONFIRMASI {sig.n_confirms}/{x.MIN_CONFIRMS}"] += 1
+              else:
+                  sent += 1; grade[sig.grade] += 1
+          print("evaluasi", n, "sinyal terkirim", sent)
+          print("distribusi composite:", dict(sorted(score_dist.items())))
+          print("veto wajib:", dict(veto.most_common()))
+          print("grade terkirim:", dict(grade))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: learn-audit
+          path: |
+            learn-audit.txt
+            gate-dump.txt
+          retention-days: 30
