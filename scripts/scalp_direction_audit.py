@@ -372,7 +372,7 @@ def momentum_m5_passed(m5s: pd.DataFrame, direction: int) -> bool:
 
 def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
         momentum_on="m15", trend_fn=None, sl_mode="atr",
-        struct_buffer_atr=0.25):
+        struct_buffer_atr=0.25, block_asia=False):
     """sl_mode: "atr" (default) = SL 0.8 ATR M5 — perilaku lama.
     "struct" = SL di luar level struktur yang ditembus ± buffer ATR M15
     (V3 Risk Management: SL = beyond invalidation structure). Kalau SL
@@ -383,6 +383,8 @@ def run(h1, m15, m5, direction_fn, horizon=HORIZON_BARS, setup_dedup=None,
     for i in range(120, len(m5) - horizon):
         # Keputusan dibuat setelah candle M5 kandidat tutup, bukan saat mulai.
         ts = m5.index[i] + pd.Timedelta(minutes=5)
+        if block_asia and ts.hour < sc.ASIA_BLOCK_UTC_UNTIL:
+            continue  # Match live early return before cooldown/setup mutation.
         # Index Dukascopy menandai awal candle. Pada ts keputusan, candle H1/M15
         # yang sedang berjalan belum punya close final; memasukkannya memberi
         # look-ahead bias. Hanya pakai candle yang sudah benar-benar tutup.
@@ -1032,8 +1034,10 @@ def main():
                    setup_dedup=CONTINUATION_ATR)
     print("── session_breakdown cond_slope_down (live) ──")
     session_stats(slope_df)
-    asia = slope_df["t"].map(session_name) == "Asia"
-    stats(slope_df[~asia], "slope_down_without_asia")
+    # Replay session gate before state changes; not a post-hoc trade filter.
+    session_gated = run(h1, m15, m5, conds["cond_slope_down"],
+                        setup_dedup=CONTINUATION_ATR, block_asia=True)
+    stats(session_gated, "slope_down_without_asia")
     # ── Macro context DXY (V3 P0#2) measurement tahap 1 ─────────────
     # Korelasi DXY-XAU + split exp_r sinyal live per arah DXY. Ini murni
     # pengukuran — tidak mengubah logika produksi. Kalau split menunjukkan
