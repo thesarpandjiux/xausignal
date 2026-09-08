@@ -36,6 +36,7 @@ jobs:
           SAMPLE_HOUR: ${{ inputs.hour }}
         run: python scripts/dukascopy_ticks.py --date "$SAMPLE_DATE" --hour "$SAMPLE_HOUR" --output tick-sample
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: dukascopy-xauusd-${{ github.run_id }}
           path: tick-sample/
