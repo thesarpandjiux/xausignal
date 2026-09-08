@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 import statistics
 import urllib.request
+import urllib.error
+import time
+from email.utils import parsedate_to_datetime
 import math
 import struct
 
@@ -59,11 +62,49 @@ def collect(day, hour, output):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)
     # ponytail: one hour only, 16 MiB compressed / 64 MiB decoded; no bulk crawler.
-    with urllib.request.urlopen(url, timeout=60) as response:
-        if response.status != 200:
-            raise ValueError(f'HTTP {response.status}')
-        raw = response.read(16 * 1024 * 1024 + 1)
-        content_type = response.headers.get('Content-Type')
+    diagnostic = {'url': url, 'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+                  'policy': 'At most one retry, only explicit Retry-After <= 60 seconds; otherwise stop.',
+                  'attempts': []}
+    safe_headers = {'date', 'server', 'retry-after', 'content-type', 'content-length',
+                    'via', 'x-cache', 'cf-ray', 'cf-mitigated'}
+    for attempt in range(2):
+        entry = {'at_utc': datetime.now(timezone.utc).isoformat(), 'status': None}
+        delay = None
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                entry['status'] = response.status
+                entry['headers'] = {k.lower(): v for k, v in response.headers.items()
+                                    if k.lower() in safe_headers}
+                if response.status != 200:
+                    raise ValueError(f'HTTP {response.status}')
+                raw = response.read(16 * 1024 * 1024 + 1)
+                content_type = response.headers.get('Content-Type')
+        except urllib.error.HTTPError as exc:
+            entry['status'] = exc.code
+            entry['error'] = f'HTTP {exc.code}'
+            entry['headers'] = {k.lower(): v for k, v in exc.headers.items()
+                                if k.lower() in safe_headers}
+            value = exc.headers.get('Retry-After')
+            if exc.code == 429 and attempt == 0 and value:
+                try:
+                    delay = (int(value) if re.fullmatch(r'[0-9]+', value) else
+                             math.ceil((parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()))
+                    delay = max(0, delay)
+                except (ValueError, TypeError, OverflowError):
+                    delay = None
+            entry['retry_delay_seconds'] = delay
+            entry['retry_planned'] = delay is not None and delay <= 60
+            if not entry['retry_planned']:
+                raise
+        except Exception as exc:
+            entry['error'] = type(exc).__name__
+            raise
+        finally:
+            diagnostic['attempts'].append(entry)
+            (output / 'http-diagnostic.json').write_text(json.dumps(diagnostic, indent=2) + '\n')
+        if entry['status'] == 200:
+            break
+        time.sleep(delay)
     if not raw or len(raw) > 16 * 1024 * 1024:
         raise ValueError('empty or oversized response')
     (output / 'ticks.bi5').write_bytes(raw)

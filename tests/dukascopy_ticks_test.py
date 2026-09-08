@@ -58,6 +58,34 @@ class TickTests(unittest.TestCase):
             with self.subTest(day=day, hour=hour), self.assertRaises(ValueError):
                 m.sample_hour(day, hour, now)
 
+    def test_http_evidence_and_bounded_retry(self):
+        import json
+        import tempfile
+        from urllib.error import HTTPError
+        from unittest.mock import patch
+        spec = importlib.util.spec_from_file_location('ticks', PATH)
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        for retry_after, expected_calls in [('1', 2), ('999', 1), (None, 1), ('bad', 1)]:
+            with self.subTest(retry_after=retry_after), tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / 'sample'
+                headers = {'Set-Cookie': 'secret', 'Retry-After': retry_after}
+                error = HTTPError('https://datafeed.dukascopy.com/', 429, 'Too Many Requests', headers, None)
+                with patch.object(m.urllib.request, 'urlopen', side_effect=error) as fetch:
+                    with patch('time.sleep') as sleep, self.assertRaises(HTTPError):
+                        m.collect('2026-09-07', '12', out)
+                self.assertTrue((out / 'http-diagnostic.json').exists(), 'HTTP failure evidence missing')
+                report = json.loads((out / 'http-diagnostic.json').read_text())
+                self.assertEqual(fetch.call_count, expected_calls)
+                self.assertEqual(len(report['attempts']), expected_calls)
+                self.assertEqual(report['attempts'][0]['status'], 429)
+                self.assertNotIn('secret', json.dumps(report))
+                if expected_calls == 2:
+                    sleep.assert_called_once_with(1)
+                else:
+                    sleep.assert_not_called()
+                self.assertFalse((out / 'manifest.json').exists())
+
     def test_artifact_pipeline(self):
         spec = importlib.util.spec_from_file_location('ticks', PATH)
         assert spec and spec.loader
