@@ -1,0 +1,43 @@
+name: Dukascopy tick research
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'UTC date YYYY-MM-DD (completed hour, >= 2003-05-06)'
+        required: true
+        default: '2026-09-07'
+        type: string
+      hour:
+        description: 'Single UTC hour 0..23; exactly one hour per run'
+        required: true
+        default: '12'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline deterministic tests (not market data)
+        run: python tests/dukascopy_ticks_test.py -v
+      - name: Fetch one real Dukascopy XAUUSD hour
+        env:
+          SAMPLE_DATE: ${{ inputs.date }}
+          SAMPLE_HOUR: ${{ inputs.hour }}
+        run: python scripts/dukascopy_ticks.py --date "$SAMPLE_DATE" --hour "$SAMPLE_HOUR" --output tick-sample
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dukascopy-xauusd-${{ github.run_id }}
+          path: tick-sample/
+          if-no-files-found: error
+          retention-days: 30
