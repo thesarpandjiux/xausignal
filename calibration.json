@@ -1,0 +1,39 @@
+{
+  "B:*": {
+    "n": 2,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "B:50": {
+    "n": 1,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "B:60": {
+    "n": 1,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "C:*": {
+    "n": 2,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "C:40": {
+    "n": 1,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "C:50": {
+    "n": 1,
+    "win_rate": 0.0,
+    "exp_r": -1.0
+  },
+  "_meta": {
+    "generated": "2026-09-08T04:38:14.285030+00:00",
+    "total_signals": 4,
+    "horizon_bars": 48,
+    "overall_win_rate": 0.0,
+    "overall_exp_r": -1.0
+  }
+}
