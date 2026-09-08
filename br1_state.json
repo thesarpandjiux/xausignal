@@ -3,13 +3,7 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": {
-    "direction": 1,
-    "level": 4415.835,
-    "created": "2026-09-07T23:35:00+00:00",
-    "origin_m15": "20260907T2315",
-    "setup_id": "BUY:20260907T2315:4415.84"
-  },
+  "pending": null,
   "native_state": {
     "last": {
       "direction": "SELL",
@@ -1481,9 +1475,13 @@
         "m15": "2026-09-07T23:45:00+00:00",
         "m5": "2026-09-07T23:55:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-08T00:03:11.539783+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-07T23:55:00+00:00",
-  "last_source": "dukascopy",
+  "last_bar": "2026-09-08T00:00:00+00:00",
+  "last_source": "twelvedata",
   "reason": "waiting"
 }
