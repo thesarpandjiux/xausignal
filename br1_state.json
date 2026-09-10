@@ -5091,9 +5091,13 @@
     {
       "time": "2026-09-10T00:01:30.311961+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-09-10T00:05:38.517978+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-10T00:00:00+00:00",
-  "last_source": "twelvedata",
+  "last_bar": "2026-09-10T00:05:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }

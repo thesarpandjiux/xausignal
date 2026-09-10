@@ -447,3 +447,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
   twelvedata: HTTPSConnectionPool(host='api.twelvedata.com', port=443): Read timed out. (read timeout=25)
   dukascopy: sumber berganti twelvedata → dukascopy di tengah evaluasi (spot XAU/USD vs spot XAU/USD). Level harga tidak sebanding.
   yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
+2026-09-10T00:05:33.526663+00:00,7e481c829e13025543fbe663f8703dcb3727a377,twelvedata,ASIA,belum eligible (0/3 trigger),False,False,ASIA,,,none,null,[],"{""h1"": {""bars"": 399, ""last_open"": ""2026-09-09T23:00:00+00:00""}, ""m15"": {""bars"": 399, ""last_open"": ""2026-09-09T23:45:00+00:00""}, ""m5"": {""bars"": 400, ""last_open"": ""2026-09-10T00:00:00+00:00""}}"
