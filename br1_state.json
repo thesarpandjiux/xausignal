@@ -8612,6 +8612,12 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377"
+    },
+    {
+      "time": "2026-09-10T22:50:43.299971+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "INVALID_OR_STALE_CLOSED_FEED",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377"
     }
   ],
   "last_bar": "2026-09-10T22:20:00+00:00",
