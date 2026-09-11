@@ -3,13 +3,7 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": {
-    "direction": 1,
-    "level": 4393.24088,
-    "created": "2026-09-11T14:00:00+00:00",
-    "origin_m15": "20260911T1345",
-    "setup_id": "BUY:20260911T1345:4393.24"
-  },
+  "pending": null,
   "native_state": {
     "last": {
       "direction": "BUY",
@@ -250,7 +244,7 @@
       "entry_latency_seconds": 71.917214,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "4/12 closed M5 bars"
+      "coverage": "5/12 closed M5 bars"
     }
   },
   "decisions": [
@@ -11012,9 +11006,22 @@
         "m15": "2026-09-11T14:00:00+00:00",
         "m5": "2026-09-11T14:00:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-11T14:06:16.818952+00:00",
+      "bar_close": "2026-09-11T14:05:00+00:00",
+      "reason": "cancel",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377",
+      "last_closed": {
+        "h1": "2026-09-11T14:00:00+00:00",
+        "m15": "2026-09-11T14:00:00+00:00",
+        "m5": "2026-09-11T14:05:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-11T14:00:00+00:00",
+  "last_bar": "2026-09-11T14:05:00+00:00",
   "last_source": "cache",
-  "reason": "armed"
+  "reason": "cancel"
 }
