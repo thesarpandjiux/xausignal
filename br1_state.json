@@ -8,11 +8,6 @@
     "last": {
       "direction": "BUY",
       "time": "2026-09-11T13:36:11.917214+00:00"
-    },
-    "active_setup": {
-      "id": "BUY:20260911T1315:4385.37",
-      "direction": "BUY",
-      "level": 4385.37245
     }
   },
   "candidates": {
@@ -244,7 +239,7 @@
       "entry_latency_seconds": 71.917214,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "6/12 closed M5 bars"
+      "coverage": "7/12 closed M5 bars"
     }
   },
   "decisions": [
@@ -11032,9 +11027,22 @@
         "m15": "2026-09-11T14:00:00+00:00",
         "m5": "2026-09-11T14:10:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-11T14:16:18.146447+00:00",
+      "bar_close": "2026-09-11T14:15:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377",
+      "last_closed": {
+        "h1": "2026-09-11T14:00:00+00:00",
+        "m15": "2026-09-11T14:15:00+00:00",
+        "m5": "2026-09-11T14:15:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-11T14:10:00+00:00",
+  "last_bar": "2026-09-11T14:15:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
