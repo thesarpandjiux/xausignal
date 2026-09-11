@@ -244,7 +244,7 @@
       "entry_latency_seconds": 71.917214,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "5/12 closed M5 bars"
+      "coverage": "6/12 closed M5 bars"
     }
   },
   "decisions": [
@@ -11019,9 +11019,22 @@
         "m15": "2026-09-11T14:00:00+00:00",
         "m5": "2026-09-11T14:05:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-11T14:11:18.063859+00:00",
+      "bar_close": "2026-09-11T14:10:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377",
+      "last_closed": {
+        "h1": "2026-09-11T14:00:00+00:00",
+        "m15": "2026-09-11T14:00:00+00:00",
+        "m5": "2026-09-11T14:10:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-11T14:05:00+00:00",
+  "last_bar": "2026-09-11T14:10:00+00:00",
   "last_source": "cache",
-  "reason": "cancel"
+  "reason": "idle"
 }
