@@ -1109,3 +1109,7 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-09-12T11:46:05.049128+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-09-12T11:51:03.394434+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-09-12T11:56:02.867579+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-09-12T12:01:32.895445+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,DATA,"Semua sumber harga gagal:
+  twelvedata: HTTPSConnectionPool(host='api.twelvedata.com', port=443): Read timed out. (read timeout=25)
+  dukascopy: sumber berganti twelvedata → dukascopy di tengah evaluasi (spot XAU/USD vs spot XAU/USD). Level harga tidak sebanding.
+  yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
