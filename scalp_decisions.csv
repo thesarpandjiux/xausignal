@@ -1240,3 +1240,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-09-12T22:25:55.565065+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-09-12T22:31:14.274627+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-09-12T22:36:06.590207+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-09-12T22:41:29.905902+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,DATA,candle M5 terakhir terlalu lama: 1546 menit,False,,,,,,,,not evaluated
