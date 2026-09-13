@@ -13600,6 +13600,12 @@
       "reason": "UNAVAILABLE",
       "detail": "MARKET_CLOSED",
       "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377"
+    },
+    {
+      "time": "2026-09-13T01:36:11.029862+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "MARKET_CLOSED",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377"
     }
   ],
   "last_bar": "2026-09-11T19:05:00+00:00",
