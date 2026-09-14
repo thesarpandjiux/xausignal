@@ -16987,6 +16987,12 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-09-14T22:21:15.488003+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "INVALID_OR_STALE_CLOSED_FEED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-09-14T21:00:00+00:00",
