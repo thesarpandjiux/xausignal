@@ -43,6 +43,8 @@ def load_signals() -> pd.DataFrame:
     if not SIGNALS.exists():
         print(f"Belum ada {SIGNALS}. Jalankan xau_signal.py dulu.")
         return pd.DataFrame()
+    from xau_signal import _migrate_signal_log
+    _migrate_signal_log(SIGNALS)
     df = pd.read_csv(SIGNALS)
     # Baris lama (sebelum kolom "source" ditambah) punya sel kosong di sana,
     # yang dibaca pandas sebagai NaN lalu str(nan) == "nan" — terlihat seperti

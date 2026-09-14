@@ -544,7 +544,8 @@ def log_signal(sig: ScalpSignal, sent: bool) -> None:
     if sig.direction == "NO-TRADE":
         return
     BASE.mkdir(parents=True, exist_ok=True)
-    new = not LOG_FILE.exists()
+    xs._migrate_signal_log(LOG_FILE)
+    new = not LOG_FILE.exists() or LOG_FILE.stat().st_size == 0
     if not new:
         with LOG_FILE.open(newline="") as f:
             if sig.signal_id() in {r["id"] for r in csv.DictReader(f)}:
@@ -569,7 +570,8 @@ def log_shadow_signal(sig: ScalpSignal) -> None:
     if sig.direction == "NO-TRADE":
         return
     BASE.mkdir(parents=True, exist_ok=True)
-    new = not SHADOW_LOG_FILE.exists()
+    xs._migrate_signal_log(SHADOW_LOG_FILE)
+    new = not SHADOW_LOG_FILE.exists() or SHADOW_LOG_FILE.stat().st_size == 0
     shadow_id = f"SH-{sig.setup_id}"
     if not new:
         with SHADOW_LOG_FILE.open(newline="") as f:
