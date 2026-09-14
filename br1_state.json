@@ -3,7 +3,13 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": null,
+  "pending": {
+    "direction": -1,
+    "level": 4318.67205,
+    "created": "2026-09-14T07:55:00+00:00",
+    "origin_m15": "20260914T0730",
+    "setup_id": "SELL:20260914T0730:4318.67"
+  },
   "native_state": {
     "last": {
       "direction": "SELL",
@@ -269,15 +275,16 @@
         "setup_id": "SELL:20260914T0700:4322.12"
       },
       "risk": 3.477080386976013,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "WIN",
+      "gross_r": 2.0,
+      "net_r": 1.8562011963045681,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 73.135895,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "3/12 closed M5 bars"
+      "coverage": "4/12 closed M5 bars",
+      "closed_at": "2026-09-14T07:55:00+00:00"
     }
   },
   "decisions": [
@@ -14832,9 +14839,22 @@
         "m15": "2026-09-14T07:45:00+00:00",
         "m5": "2026-09-14T07:50:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-14T07:56:09.765004+00:00",
+      "bar_close": "2026-09-14T07:55:00+00:00",
+      "reason": "armed",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-09-14T07:00:00+00:00",
+        "m15": "2026-09-14T07:45:00+00:00",
+        "m5": "2026-09-14T07:55:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-14T07:50:00+00:00",
+  "last_bar": "2026-09-14T07:55:00+00:00",
   "last_source": "cache",
-  "reason": "idle"
+  "reason": "armed"
 }
