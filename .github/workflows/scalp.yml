@@ -11,6 +11,11 @@ on:
   repository_dispatch:
     types: [scalp_tick]
   workflow_dispatch:
+    inputs:
+      journal_only:
+        description: "Update journals only; no bot, Telegram, or BR1 evaluation"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -47,6 +52,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Jalankan bot scalp
+        if: ${{ !inputs.journal_only }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -56,7 +62,6 @@ jobs:
         run: python xau_scalp.py
 
       - name: Nilai hasil sinyal scalp
-        continue-on-error: true
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           XAU_HOME: /tmp/botscalp
@@ -65,7 +70,6 @@ jobs:
         run: python journal.py update
 
       - name: Nilai shadow setup scalp
-        continue-on-error: true
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
           XAU_HOME: /tmp/botscalp
@@ -77,7 +81,7 @@ jobs:
         run: python journal.py update
 
       - name: Catat BR1 forward shadow (tanpa Telegram)
-        if: always()
+        if: ${{ always() && !inputs.journal_only }}
         continue-on-error: true
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
@@ -85,7 +89,7 @@ jobs:
         run: python br1_shadow.py
 
       - name: Bukti BR1 forward
-        if: always()
+        if: ${{ always() && !inputs.journal_only }}
         uses: actions/upload-artifact@v4
         with:
           name: br1-forward-${{ github.run_id }}
@@ -110,6 +114,6 @@ jobs:
             echo "tidak ada perubahan state"
           else
             git commit -q -m "scalp state: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push -q origin HEAD:bot-scalp --force
+            git push -q origin HEAD:bot-scalp
             echo "state tersimpan"
           fi

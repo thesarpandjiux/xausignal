@@ -33,6 +33,7 @@ jobs:
 
       - name: Scalp and audit regressions
         run: |
+          python tests/journal_schema_test.py
           python tests/scalp_test.py
           python tests/veto_telemetry_test.py
           python tests/br1_test.py

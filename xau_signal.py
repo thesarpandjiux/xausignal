@@ -862,28 +862,45 @@ SIGNAL_COLS = ["time", "id", "direction", "grade", "composite", "tech", "news",
                "confirms", "sent", "source", "trigger", "veto_reason"]
 
 
-def _migrate_signal_log() -> None:
+def _migrate_signal_log(path: Path | None = None) -> None:
     """Perbaiki signals.csv kalau header di disk tidak cocok SIGNAL_COLS.
 
     Baris lama diisi "" untuk kolom yang belum ada saat itu (mis. "source").
     Dijalankan sekali di awal tiap proses, jadi schema drift di masa depan
     juga sembuh sendiri tanpa perlu migrasi manual lagi.
     """
-    if not LOG_FILE.exists():
+    import tempfile
+
+    path = LOG_FILE if path is None else Path(path)
+    if not path.exists() or path.stat().st_size == 0:
         return
-    with LOG_FILE.open(newline="") as f:
-        rows = list(csv.reader(f))
-    if not rows or rows[0] == SIGNAL_COLS:
-        return
+    with path.open(newline="") as f:
+        rows = list(csv.reader(f, strict=True))
+    header = rows[0]
+    if len(header) < 16 or header != SIGNAL_COLS[:len(header)]:
+        raise ValueError(f"Unknown signal schema in {path}: {header}")
     fixed = [SIGNAL_COLS]
-    for r in rows[1:]:
-        if r == SIGNAL_COLS:      # baris header duplikat dari migrasi lama
-            continue
-        r = (r + [""] * len(SIGNAL_COLS))[:len(SIGNAL_COLS)]
-        fixed.append(r)
-    with LOG_FILE.open("w", newline="") as f:
-        csv.writer(f).writerows(fixed)
-    print(f"[info] signals.csv dimigrasi ke skema {len(SIGNAL_COLS)} kolom "
+    for line, row in enumerate(rows[1:], 2):
+        if not 16 <= len(row) <= len(SIGNAL_COLS):
+            raise ValueError(f"Invalid signal width in {path}:{line}: {len(row)}")
+        fixed.append(row + [""] * (len(SIGNAL_COLS) - len(row)))
+    if rows == fixed:
+        return
+    # Same-directory replace: a failed write never truncates the original.
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", newline="", dir=path.parent,
+                                         prefix=f".{path.name}.", delete=False) as f:
+            tmp = Path(f.name)
+            csv.writer(f).writerows(fixed)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.chmod(path.stat().st_mode)
+        os.replace(tmp, path)
+    finally:
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
+    print(f"[info] {path.name} dimigrasi ke skema {len(SIGNAL_COLS)} kolom "
           f"({len(fixed) - 1} baris)", file=sys.stderr)
 
 
