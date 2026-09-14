@@ -1306,3 +1306,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-09-13T03:55:58.289626+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-09-13T04:01:21.548730+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,DATA,candle M5 terakhir terlalu lama: 1866 menit,False,,,,,,,,not evaluated
 2026-09-13T04:06:11.224024+00:00,7e481c829e13025543fbe663f8703dcb3727a377,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-09-14T01:21:03.248995+00:00,7e481c829e13025543fbe663f8703dcb3727a377,twelvedata,ASIA,belum eligible (0/3 trigger),False,False,ASIA,,,none,null,[],"{""h1"": {""bars"": 399, ""last_open"": ""2026-09-14T00:00:00+00:00""}, ""m15"": {""bars"": 399, ""last_open"": ""2026-09-14T01:00:00+00:00""}, ""m5"": {""bars"": 400, ""last_open"": ""2026-09-14T01:15:00+00:00""}}"

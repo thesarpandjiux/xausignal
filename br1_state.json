@@ -13786,9 +13786,22 @@
       "reason": "UNAVAILABLE",
       "detail": "MARKET_CLOSED",
       "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377"
+    },
+    {
+      "time": "2026-09-14T01:21:05.223637+00:00",
+      "bar_close": "2026-09-14T01:20:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "7e481c829e13025543fbe663f8703dcb3727a377",
+      "last_closed": {
+        "h1": "2026-09-14T01:00:00+00:00",
+        "m15": "2026-09-14T01:15:00+00:00",
+        "m5": "2026-09-14T01:20:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-11T19:05:00+00:00",
+  "last_bar": "2026-09-14T01:20:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
