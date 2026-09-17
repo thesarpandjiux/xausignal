@@ -26968,6 +26968,12 @@
     {
       "time": "2026-09-17T15:56:24.798450+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-09-17T16:02:10.126442+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "Semua sumber harga gagal:\n  twelvedata: HTTPSConnectionPool(host='api.twelvedata.com', port=443): Read timed out. (read timeout=25)\n  dukascopy: sumber berganti twelvedata \u2192 dukascopy di tengah evaluasi (spot XAU/USD vs spot XAU/USD). Level harga tidak sebanding.\n  yfinance: sumber berganti twelvedata \u2192 yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-09-17T15:55:00+00:00",
