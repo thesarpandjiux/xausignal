@@ -8,11 +8,6 @@
     "last": {
       "direction": "BUY",
       "time": "2026-09-17T11:16:15.774188+00:00"
-    },
-    "active_setup": {
-      "id": "BUY:20260917T1045:4330.78",
-      "direction": "BUY",
-      "level": 4330.78293
     }
   },
   "candidates": {
@@ -599,15 +594,16 @@
         "setup_id": "BUY:20260917T1045:4330.78"
       },
       "risk": 3.612262132871365,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.1384174186723688,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 75.774188,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "1/12 closed M5 bars"
+      "coverage": "2/12 closed M5 bars",
+      "closed_at": "2026-09-17T11:30:00+00:00"
     }
   },
   "decisions": [
@@ -26331,9 +26327,22 @@
         "m15": "2026-09-17T11:15:00+00:00",
         "m5": "2026-09-17T11:25:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-17T11:31:17.338554+00:00",
+      "bar_close": "2026-09-17T11:30:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-09-17T11:00:00+00:00",
+        "m15": "2026-09-17T11:30:00+00:00",
+        "m5": "2026-09-17T11:30:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-17T11:25:00+00:00",
+  "last_bar": "2026-09-17T11:30:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
