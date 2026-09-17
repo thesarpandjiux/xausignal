@@ -25146,9 +25146,13 @@
     {
       "time": "2026-09-17T04:02:11.783913+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-09-17T04:05:55.820646+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-17T04:00:00+00:00",
-  "last_source": "twelvedata",
+  "last_bar": "2026-09-17T04:05:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }
