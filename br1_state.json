@@ -3,13 +3,7 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": {
-    "direction": 1,
-    "level": 4385.275,
-    "created": "2026-09-18T17:30:00+00:00",
-    "origin_m15": "20260918T1715",
-    "setup_id": "BUY:20260918T1715:4385.27"
-  },
+  "pending": null,
   "native_state": {
     "last": {
       "direction": "BUY",
@@ -638,15 +632,16 @@
         "setup_id": "BUY:20260918T1630:4381.16"
       },
       "risk": 4.18019976623782,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "WIN",
+      "gross_r": 2.0,
+      "net_r": 1.8803884914691529,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 142.413305,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "5/12 closed M5 bars"
+      "coverage": "6/12 closed M5 bars",
+      "closed_at": "2026-09-18T17:35:00+00:00"
     }
   },
   "decisions": [
@@ -30762,9 +30757,22 @@
         "m15": "2026-09-18T17:30:00+00:00",
         "m5": "2026-09-18T17:30:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-18T17:36:06.316486+00:00",
+      "bar_close": "2026-09-18T17:35:00+00:00",
+      "reason": "native_reject:duplikat setup; level continuation belum maju 0.75 ATR M15",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-09-18T17:00:00+00:00",
+        "m15": "2026-09-18T17:30:00+00:00",
+        "m5": "2026-09-18T17:35:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-18T17:30:00+00:00",
+  "last_bar": "2026-09-18T17:35:00+00:00",
   "last_source": "cache",
-  "reason": "armed"
+  "reason": "native_reject:duplikat setup; level continuation belum maju 0.75 ATR M15"
 }
