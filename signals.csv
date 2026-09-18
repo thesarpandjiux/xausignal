@@ -133,3 +133,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-09-17T18:13:23.364679+00:00,260917-1813-N—,NO-TRADE,—,6.1,6.1,0.0,4360.98,4360.98,4360.98,,,,,0,False,dukascopy,auto,"Skor di bawah ambang, tidak ada setup."
 2026-09-17T22:09:39.144776+00:00,260917-2209-N—,NO-TRADE,—,-28.5,-28.5,0.0,4341.06,4341.06,4341.06,,,,,0,False,dukascopy,auto,"Skor di bawah ambang, tidak ada setup."
 2026-09-18T00:20:31.268066+00:00,260918-0020-N—,NO-TRADE,—,-9.6,-9.3,-10.0,4353.48,4353.48,4353.48,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
+2026-09-18T05:55:07.268778+00:00,260918-0555-N—,NO-TRADE,—,17.0,17.0,0.0,4372.58,4372.58,4372.58,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
