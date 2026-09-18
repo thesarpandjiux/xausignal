@@ -3,7 +3,13 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": null,
+  "pending": {
+    "direction": 1,
+    "level": 4396.09578,
+    "created": "2026-09-18T09:10:00+00:00",
+    "origin_m15": "20260918T0845",
+    "setup_id": "BUY:20260918T0845:4396.10"
+  },
   "native_state": {
     "last": {
       "direction": "BUY",
@@ -29406,9 +29412,22 @@
         "m15": "2026-09-18T09:00:00+00:00",
         "m5": "2026-09-18T09:05:00+00:00"
       }
+    },
+    {
+      "time": "2026-09-18T09:11:41.645306+00:00",
+      "bar_close": "2026-09-18T09:10:00+00:00",
+      "reason": "armed",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-09-18T09:00:00+00:00",
+        "m15": "2026-09-18T09:00:00+00:00",
+        "m5": "2026-09-18T09:10:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-09-18T09:05:00+00:00",
+  "last_bar": "2026-09-18T09:10:00+00:00",
   "last_source": "cache",
-  "reason": "idle"
+  "reason": "armed"
 }
