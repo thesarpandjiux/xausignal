@@ -141,3 +141,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-09-21T06:20:18.002189+00:00,260921-0620-N—,NO-TRADE,—,-51.2,-51.2,0.0,4351.82,4351.82,4361.4,4335.01,4324.14,4305.19,1.75,3,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended
 2026-09-21T14:08:14.842561+00:00,260921-1408-N—,NO-TRADE,—,-41.8,-41.8,0.0,4324.98,4324.98,4339.33,4303.46,4289.11,4238.37,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; Volatilitas wajar
 2026-09-21T19:27:23.292722+00:00,260921-1927-N—,NO-TRADE,—,-29.8,-29.8,0.0,4345.82,4345.82,4345.82,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
+2026-09-21T23:17:05.529902+00:00,260921-2317-N—,NO-TRADE,—,11.9,11.9,0.0,4360.19,4360.19,4360.19,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
