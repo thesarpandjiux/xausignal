@@ -1,0 +1,29 @@
+{
+  "B:*": {
+    "n": 10,
+    "win_rate": 30.0,
+    "exp_r": -0.217
+  },
+  "B:40": {
+    "n": 10,
+    "win_rate": 30.0,
+    "exp_r": -0.217
+  },
+  "C:*": {
+    "n": 1,
+    "win_rate": 100.0,
+    "exp_r": 1.5
+  },
+  "C:40": {
+    "n": 1,
+    "win_rate": 100.0,
+    "exp_r": 1.5
+  },
+  "_meta": {
+    "generated": "2026-09-26T04:57:27.393860+00:00",
+    "total_signals": 11,
+    "horizon_bars": 48,
+    "overall_win_rate": 36.4,
+    "overall_exp_r": -0.061
+  }
+}
