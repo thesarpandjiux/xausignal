@@ -3928,3 +3928,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-09-26T22:55:35.013014+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1561 menit,False,,,,,,,,not evaluated
 2026-09-26T23:00:54.597351+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1566 menit,False,,,,,,,,not evaluated
 2026-09-26T23:05:35.814613+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1571 menit,False,,,,,,,,not evaluated
+2026-09-26T23:10:34.734723+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1576 menit,False,,,,,,,,not evaluated
