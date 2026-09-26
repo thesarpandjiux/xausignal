@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "generated": "2026-09-26T05:09:40.674122+00:00",
+    "total_signals": 39,
+    "horizon_bars": 12,
+    "horizon_minutes": 60,
+    "overall_win_rate": 38.5,
+    "overall_exp_r": 0.154
+  },
+  "A:*": {
+    "n": 2,
+    "win_rate": 50.0,
+    "exp_r": 0.5
+  },
+  "B:*": {
+    "n": 37,
+    "win_rate": 37.8,
+    "exp_r": 0.135
+  },
+  "2/3": {
+    "n": 37,
+    "win_rate": 37.8,
+    "exp_r": 0.135
+  },
+  "3/3": {
+    "n": 2,
+    "win_rate": 50.0,
+    "exp_r": 0.5
+  }
+}
