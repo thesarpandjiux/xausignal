@@ -43058,9 +43058,13 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-09-27T23:01:02.710554+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-25T20:55:00+00:00",
-  "last_source": "cache",
+  "last_bar": "2026-09-27T23:00:00+00:00",
+  "last_source": "dukascopy",
   "reason": "idle"
 }
