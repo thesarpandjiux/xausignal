@@ -164,3 +164,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-09-25T18:36:13.864818+00:00,260925-1836-SC,SELL,C,-54.7,-54.7,0.0,4291.24,4291.24,4307.08,4263.88,4254.78,4245.2,1.73,3,True,twelvedata,auto,
 2026-09-27T22:10:10.212883+00:00,260927-2210-N—,NO-TRADE,—,-32.1,-32.1,0.0,4282.81,4282.81,4282.81,,,,,0,False,dukascopy,auto,"Skor di bawah ambang, tidak ada setup."
 2026-09-28T00:48:05.964719+00:00,260928-0048-N—,NO-TRADE,—,-84.2,-84.2,0.0,4238.86,4238.86,4251.67,4219.64,4206.82,4194.01,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; R:R memadai
+2026-09-28T06:53:12.570859+00:00,260928-0653-N—,NO-TRADE,—,-92.1,-92.1,0.0,4173.83,4173.83,4196.07,4140.47,4118.23,4095.98,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; Volatilitas wajar
