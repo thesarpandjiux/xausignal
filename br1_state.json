@@ -8,11 +8,6 @@
     "last": {
       "direction": "SELL",
       "time": "2026-09-28T20:45:38.794127+00:00"
-    },
-    "active_setup": {
-      "id": "SELL:20260928T2015:4117.94",
-      "direction": "SELL",
-      "level": 4117.94395
     }
   },
   "candidates": {
@@ -46732,9 +46727,13 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-09-28T23:00:48.362247+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-09-28T21:55:00+00:00",
-  "last_source": "cache",
+  "last_bar": "2026-09-28T23:00:00+00:00",
+  "last_source": "dukascopy",
   "reason": "idle"
 }
