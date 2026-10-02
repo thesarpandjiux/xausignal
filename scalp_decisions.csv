@@ -5653,3 +5653,7 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-10-02T21:36:02.112006+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-10-02T21:41:08.470577+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-10-02T21:46:04.265502+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-10-02T21:51:03.540290+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,"Semua sumber harga gagal:
+  twelvedata: 429 Client Error: Too Many Requests for url: https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=5min&outputsize=400&apikey=5f51ed0aa40147e09402618173e83050&format=JSON&timezone=UTC
+  dukascopy: sumber berganti twelvedata → dukascopy di tengah evaluasi (spot XAU/USD vs spot XAU/USD). Level harga tidak sebanding.
+  yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
