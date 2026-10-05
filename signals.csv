@@ -185,3 +185,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-02T16:16:22.741360+00:00,261002-1616-SB,SELL,B,-64.2,-64.2,0.0,4135.51,4135.51,4177.7,4072.24,4030.06,3987.88,1.5,4,True,twelvedata,auto,
 2026-10-05T00:55:12.537241+00:00,261005-0055-N—,NO-TRADE,—,-32.7,-32.7,0.0,4154.71,4154.71,4154.71,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-10-05T07:02:15.972198+00:00,261005-0702-SC,SELL,C,-51.2,-51.2,0.0,4155.87,4155.87,4164.31,4139.78,4134.45,4126.08,1.91,3,True,twelvedata,auto,
+2026-10-05T15:59:49.189311+00:00,261005-1559-N—,NO-TRADE,—,-58.4,-58.4,0.0,4140.15,4140.15,4153.02,4120.84,4107.96,4095.09,1.5,5,False,twelvedata,auto,Ditolak syarat wajib: Volatilitas wajar
