@@ -1,0 +1,24 @@
+name: Exness official tick research
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Fetch official source and one fixed daily archive
+        shell: bash
+        run: |
+          mkdir -p exness-sample
+          curl --fail --location --connect-timeout 10 --max-time 45 --max-filesize 10485760 https://www.exness.com/tick-history/ -o exness-sample/source.html 2> exness-sample/source-fetch.log || true
+          curl --fail --location --connect-timeout 10 --max-time 90 --max-filesize 52428800 https://ticks.ex2archive.com/ticks/XAUUSDm/2026/08/31/Exness_XAUUSDm_2026_08_31.zip -o exness-sample/Exness_XAUUSDm_2026_08_31.zip
+          sha256sum exness-sample/* > exness-sample/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: exness-official-${{ github.run_id }}
+          path: exness-sample/
+          if-no-files-found: error
+          retention-days: 30
