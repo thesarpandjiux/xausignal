@@ -71903,6 +71903,12 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-06T22:36:08.350053+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "INVALID_OR_STALE_CLOSED_FEED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-10-06T21:00:00+00:00",
