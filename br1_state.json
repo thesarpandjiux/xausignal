@@ -1324,15 +1324,16 @@
         "setup_id": "BUY:20261008T2245:4139.30"
       },
       "risk": 1.8410290484916914,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.2715872410647933,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 64.908411,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "6/12 closed M5 bars"
+      "coverage": "7/12 closed M5 bars",
+      "closed_at": "2026-10-08T23:50:00+00:00"
     }
   },
   "decisions": [
@@ -79364,9 +79365,22 @@
         "m15": "2026-10-08T23:45:00+00:00",
         "m5": "2026-10-08T23:45:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-08T23:51:08.757216+00:00",
+      "bar_close": "2026-10-08T23:50:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-08T23:00:00+00:00",
+        "m15": "2026-10-08T23:45:00+00:00",
+        "m5": "2026-10-08T23:50:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-08T23:45:00+00:00",
+  "last_bar": "2026-10-08T23:50:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
