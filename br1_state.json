@@ -82779,6 +82779,12 @@
       "reason": "UNAVAILABLE",
       "detail": "MARKET_CLOSED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-09T22:41:30.899774+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "MARKET_CLOSED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-10-09T20:55:00+00:00",
