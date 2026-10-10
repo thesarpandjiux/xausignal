@@ -7960,3 +7960,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-10-10T22:46:02.398795+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1551 menit,False,,,,,,,,not evaluated
 2026-10-10T22:51:02.290960+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1556 menit,False,,,,,,,,not evaluated
 2026-10-10T22:56:02.368741+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1561 menit,False,,,,,,,,not evaluated
+2026-10-10T23:01:09.828680+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 1566 menit,False,,,,,,,,not evaluated
