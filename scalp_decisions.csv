@@ -8046,3 +8046,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-10-11T05:56:01.953393+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-10-11T06:01:11.578918+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-10-11T06:05:58.398409+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-10-11T06:11:04.483254+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
