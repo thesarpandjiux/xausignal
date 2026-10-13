@@ -204,3 +204,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-12T00:31:52.037910+00:00,261012-0031-N—,NO-TRADE,—,-6.0,-6.0,0.0,4204.99,4204.99,4204.99,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-10-12T07:20:54.320419+00:00,261012-0720-N—,NO-TRADE,—,-29.5,-29.5,0.0,4185.49,4185.49,4185.49,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-10-12T17:53:43.245356+00:00,261012-1753-SA,SELL,A,-61.4,-61.4,0.0,4164.6,4164.6,4182.99,4122.97,4113.18,4103.81,2.26,5,True,dukascopy,auto,
+2026-10-13T00:38:50.378435+00:00,261013-0038-SB,SELL,B,-42.6,-42.6,0.0,4166.34,4166.34,4175.1,4153.18,4113.12,4105.76,1.5,4,True,twelvedata,auto,
