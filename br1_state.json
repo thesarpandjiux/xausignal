@@ -1358,15 +1358,16 @@
         "setup_id": "SELL:20261013T1015:4183.36"
       },
       "risk": 2.0270585851530996,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.2466628264531565,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 67.342785,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "2/12 closed M5 bars"
+      "coverage": "3/12 closed M5 bars",
+      "closed_at": "2026-10-13T11:05:00+00:00"
     }
   },
   "decisions": [
@@ -91728,9 +91729,22 @@
         "m15": "2026-10-13T11:00:00+00:00",
         "m5": "2026-10-13T11:00:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-13T11:06:06.752723+00:00",
+      "bar_close": "2026-10-13T11:05:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-13T11:00:00+00:00",
+        "m15": "2026-10-13T11:00:00+00:00",
+        "m5": "2026-10-13T11:05:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-13T11:00:00+00:00",
+  "last_bar": "2026-10-13T11:05:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
