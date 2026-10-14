@@ -96396,9 +96396,13 @@
     {
       "time": "2026-10-14T17:06:18.423853+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-10-14T17:11:15.478778+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-10-14T17:05:00+00:00",
-  "last_source": "dukascopy",
+  "last_bar": "2026-10-14T17:10:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }
