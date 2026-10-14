@@ -212,3 +212,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-14T06:12:40.740132+00:00,261014-0612-SB,SELL,B,-52.8,-52.8,0.0,4155.99,4155.99,4170.02,4134.94,4120.91,4106.87,1.5,4,True,twelvedata,auto,
 2026-10-14T12:00:46.762250+00:00,261014-1200-N—,NO-TRADE,—,-42.6,-64.4,-10.0,4141.29,4141.29,4166.64,4103.25,4077.9,4052.54,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Bebas blackout news
 2026-10-14T17:09:49.257290+00:00,261014-1709-N—,NO-TRADE,—,-76.1,-76.1,0.0,4083.38,4083.38,4123.29,4023.5,3983.58,3943.66,1.5,4,False,dukascopy,auto,Ditolak syarat wajib: Tidak overextended
+2026-10-14T20:42:22.237487+00:00,261014-2042-SB,SELL,B,-40.8,-61.3,-10.0,4101.45,4101.45,4140.68,4042.62,4003.39,3964.17,1.5,4,True,dukascopy,auto,
