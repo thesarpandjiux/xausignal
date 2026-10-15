@@ -3,7 +3,13 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": null,
+  "pending": {
+    "direction": 1,
+    "level": 4161.318,
+    "created": "2026-10-15T19:40:00+00:00",
+    "origin_m15": "20261015T1915",
+    "setup_id": "BUY:20261015T1915:4161.32"
+  },
   "native_state": {
     "last": {
       "direction": "BUY",
@@ -1754,15 +1760,16 @@
         "setup_id": "BUY:20261015T1815:4157.73"
       },
       "risk": 2.4645408890964973,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "WIN",
+      "gross_r": 2.0,
+      "net_r": 1.797122457082341,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 69.62576,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "11/12 closed M5 bars"
+      "coverage": "12/12 closed M5 bars",
+      "closed_at": "2026-10-15T19:40:00+00:00"
     },
     "BR1:2026-10-15T19:35:00+00:00:BUY": {
       "id": "BR1:2026-10-15T19:35:00+00:00:BUY",
@@ -1793,7 +1800,8 @@
       "cost_price": 0.5,
       "entry_latency_seconds": 75.41038,
       "news_mode": "none",
-      "news_event": null
+      "news_event": null,
+      "coverage": "missing/noncontiguous bars; pending"
     }
   },
   "decisions": [
@@ -100626,9 +100634,22 @@
         "m15": "2026-10-15T19:30:00+00:00",
         "m5": "2026-10-15T19:35:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-15T19:41:15.022028+00:00",
+      "bar_close": "2026-10-15T19:40:00+00:00",
+      "reason": "armed",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-15T19:00:00+00:00",
+        "m15": "2026-10-15T19:30:00+00:00",
+        "m5": "2026-10-15T19:40:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-15T19:35:00+00:00",
+  "last_bar": "2026-10-15T19:40:00+00:00",
   "last_source": "cache",
-  "reason": "accepted"
+  "reason": "armed"
 }
