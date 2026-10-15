@@ -8,11 +8,6 @@
     "last": {
       "direction": "SELL",
       "time": "2026-10-15T16:16:13.051971+00:00"
-    },
-    "active_setup": {
-      "id": "SELL:20261015T1545:4146.93",
-      "direction": "SELL",
-      "level": 4146.93334
     }
   },
   "candidates": {
@@ -1721,15 +1716,16 @@
         "setup_id": "SELL:20261015T1545:4146.93"
       },
       "risk": 3.876711240799523,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.128975301213531,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 73.051971,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "1/12 closed M5 bars"
+      "coverage": "2/12 closed M5 bars",
+      "closed_at": "2026-10-15T16:30:00+00:00"
     }
   },
   "decisions": [
@@ -100068,9 +100064,22 @@
         "m15": "2026-10-15T16:15:00+00:00",
         "m5": "2026-10-15T16:25:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-15T16:31:11.030990+00:00",
+      "bar_close": "2026-10-15T16:30:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-15T16:00:00+00:00",
+        "m15": "2026-10-15T16:30:00+00:00",
+        "m5": "2026-10-15T16:30:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-15T16:25:00+00:00",
+  "last_bar": "2026-10-15T16:30:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
