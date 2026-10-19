@@ -8,11 +8,6 @@
     "last": {
       "direction": "SELL",
       "time": "2026-10-19T13:26:06.112218+00:00"
-    },
-    "active_setup": {
-      "id": "SELL:20261019T1300:4161.32",
-      "direction": "SELL",
-      "level": 4161.318
     }
   },
   "candidates": {
@@ -1993,7 +1988,7 @@
       "entry_latency_seconds": 60.981676,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "8/12 closed M5 bars"
+      "coverage": "9/12 closed M5 bars"
     },
     "BR1:2026-10-19T13:25:00+00:00:SELL": {
       "id": "BR1:2026-10-19T13:25:00+00:00:SELL",
@@ -2024,7 +2019,8 @@
       "cost_price": 0.5,
       "entry_latency_seconds": 66.112218,
       "news_mode": "none",
-      "news_event": null
+      "news_event": null,
+      "coverage": "missing/noncontiguous bars; pending"
     }
   },
   "decisions": [
@@ -110513,9 +110509,22 @@
         "m15": "2026-10-19T13:15:00+00:00",
         "m5": "2026-10-19T13:25:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-19T13:31:09.570998+00:00",
+      "bar_close": "2026-10-19T13:30:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-19T13:00:00+00:00",
+        "m15": "2026-10-19T13:30:00+00:00",
+        "m5": "2026-10-19T13:30:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-19T13:25:00+00:00",
+  "last_bar": "2026-10-19T13:30:00+00:00",
   "last_source": "cache",
-  "reason": "accepted"
+  "reason": "idle"
 }
