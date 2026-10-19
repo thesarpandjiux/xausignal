@@ -226,3 +226,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-18T23:11:19.927325+00:00,261018-2311-N—,NO-TRADE,—,-26.7,-26.7,0.0,4174.97,4174.97,4174.97,,,,,0,False,dukascopy,auto,"Skor di bawah ambang, tidak ada setup."
 2026-10-19T01:19:03.133566+00:00,261019-0119-N—,NO-TRADE,—,-8.1,-8.1,0.0,4171.52,4171.52,4171.52,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-10-19T07:45:45.081367+00:00,261019-0745-N—,NO-TRADE,—,-4.6,-1.0,-10.0,4182.91,4182.91,4182.91,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
+2026-10-19T15:35:43.582473+00:00,261019-1535-N—,NO-TRADE,—,-71.3,-71.3,0.0,4144.56,4144.56,4163.4,4116.3,4097.46,4078.62,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Volatilitas wajar
