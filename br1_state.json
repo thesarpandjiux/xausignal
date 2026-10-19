@@ -8,11 +8,6 @@
     "last": {
       "direction": "SELL",
       "time": "2026-10-19T20:31:07.139746+00:00"
-    },
-    "active_setup": {
-      "id": "SELL:20261019T2000:4139.06",
-      "direction": "SELL",
-      "level": 4139.055
     }
   },
   "candidates": {
@@ -2051,15 +2046,16 @@
         "setup_id": "SELL:20261019T2000:4139.06"
       },
       "risk": 1.4101423090705794,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.3545741424704494,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 67.139746,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "4/12 closed M5 bars"
+      "coverage": "5/12 closed M5 bars",
+      "closed_at": "2026-10-19T21:00:00+00:00"
     }
   },
   "decisions": [
@@ -111718,9 +111714,22 @@
         "m15": "2026-10-19T20:45:00+00:00",
         "m5": "2026-10-19T20:55:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-19T21:01:03.298099+00:00",
+      "bar_close": "2026-10-19T21:00:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-19T21:00:00+00:00",
+        "m15": "2026-10-19T21:00:00+00:00",
+        "m5": "2026-10-19T21:00:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-19T20:55:00+00:00",
+  "last_bar": "2026-10-19T21:00:00+00:00",
   "last_source": "cache",
-  "reason": "native_reject:duplikat setup; level continuation belum maju 0.75 ATR M15"
+  "reason": "idle"
 }
