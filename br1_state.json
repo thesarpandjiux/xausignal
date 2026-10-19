@@ -3,13 +3,7 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": {
-    "direction": 1,
-    "level": 4176.975,
-    "created": "2026-10-18T23:25:00+00:00",
-    "origin_m15": "20261018T2300",
-    "setup_id": "BUY:20261018T2300:4176.98"
-  },
+  "pending": null,
   "native_state": {
     "last": {
       "direction": "BUY",
@@ -108288,9 +108282,13 @@
         "m15": "2026-10-18T23:45:00+00:00",
         "m5": "2026-10-18T23:55:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-19T00:01:06.828296+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-10-18T23:55:00+00:00",
+  "last_bar": "2026-10-19T00:00:00+00:00",
   "last_source": "cache",
   "reason": "waiting"
 }
