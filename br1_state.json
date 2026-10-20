@@ -114652,9 +114652,13 @@
     {
       "time": "2026-10-20T16:25:59.410366+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-10-20T16:31:08.471465+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-10-20T16:25:00+00:00",
-  "last_source": "dukascopy",
+  "last_bar": "2026-10-20T16:30:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }
