@@ -118824,9 +118824,13 @@
     {
       "time": "2026-10-21T20:51:29.602533+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-10-21T20:56:02.608718+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-10-21T20:50:00+00:00",
-  "last_source": "dukascopy",
+  "last_bar": "2026-10-21T20:55:00+00:00",
+  "last_source": "cache",
   "reason": "idle"
 }
