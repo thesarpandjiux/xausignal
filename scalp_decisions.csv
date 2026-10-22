@@ -11438,3 +11438,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
   dukascopy: sumber berganti twelvedata → dukascopy di tengah evaluasi (spot XAU/USD vs spot XAU/USD). Level harga tidak sebanding.
   yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
 2026-10-22T21:55:56.344970+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 61 menit,False,,,,,,,,not evaluated
+2026-10-22T22:00:59.388607+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 66 menit,False,,,,,,,,not evaluated
