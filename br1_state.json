@@ -128236,6 +128236,12 @@
       "reason": "UNAVAILABLE",
       "detail": "MARKET_CLOSED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-25T01:11:18.194615+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "MARKET_CLOSED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-10-23T20:55:00+00:00",
