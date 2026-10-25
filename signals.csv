@@ -248,3 +248,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-23T10:03:02.897133+00:00,261023-1003-N—,NO-TRADE,—,-45.9,-45.9,0.0,4022.35,4022.35,4036.96,4000.45,3987.72,3971.25,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: R:R memadai
 2026-10-23T15:03:39.522277+00:00,261023-1503-SC,SELL,C,-57.7,-57.7,0.0,4001.03,4001.03,4033.5,3952.33,3919.86,3887.39,1.5,3,True,twelvedata,auto,
 2026-10-23T19:12:26.276794+00:00,261023-1912-N—,NO-TRADE,—,-60.6,-60.6,0.0,3995.43,3995.43,4031.64,3941.1,3904.88,3868.66,1.5,3,False,twelvedata,auto,Ditolak syarat wajib: R:R memadai
+2026-10-25T22:32:44.345363+00:00,261025-2232-N—,NO-TRADE,—,-59.9,-59.9,0.0,3995.21,3995.21,4031.01,3941.52,3905.72,3869.92,1.5,3,False,dukascopy,auto,Ditolak syarat wajib: R:R memadai
