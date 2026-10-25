@@ -2351,7 +2351,7 @@
       "entry_latency_seconds": 85.979062,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "missing/noncontiguous bars; pending"
+      "coverage": "source mismatch; pending"
     }
   },
   "decisions": [
@@ -129807,9 +129807,22 @@
     {
       "time": "2026-10-25T23:01:27.814206+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-10-25T23:06:17.189572+00:00",
+      "bar_close": "2026-10-25T23:05:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "dukascopy",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-25T23:00:00+00:00",
+        "m15": "2026-10-25T23:00:00+00:00",
+        "m5": "2026-10-25T23:05:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-25T23:00:00+00:00",
+  "last_bar": "2026-10-25T23:05:00+00:00",
   "last_source": "dukascopy",
   "reason": "idle"
 }
