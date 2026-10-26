@@ -2351,7 +2351,7 @@
       "entry_latency_seconds": 85.979062,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "source mismatch; pending"
+      "coverage": "missing/noncontiguous bars; pending"
     }
   },
   "decisions": [
@@ -129954,9 +129954,22 @@
     {
       "time": "2026-10-26T00:01:32.001751+00:00",
       "reason": "cancel_gate_or_source"
+    },
+    {
+      "time": "2026-10-26T00:06:30.686262+00:00",
+      "bar_close": "2026-10-26T00:05:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-26T00:00:00+00:00",
+        "m15": "2026-10-26T00:00:00+00:00",
+        "m5": "2026-10-26T00:05:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-26T00:00:00+00:00",
+  "last_bar": "2026-10-26T00:05:00+00:00",
   "last_source": "cache",
-  "reason": "armed"
+  "reason": "idle"
 }
