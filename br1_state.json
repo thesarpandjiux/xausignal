@@ -133515,6 +133515,12 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-26T22:21:26.627699+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "INVALID_OR_STALE_CLOSED_FEED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-10-26T21:45:00+00:00",
