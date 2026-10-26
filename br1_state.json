@@ -133563,9 +133563,13 @@
       "reason": "UNAVAILABLE",
       "detail": "INVALID_OR_STALE_CLOSED_FEED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-26T23:01:29.826455+00:00",
+      "reason": "cancel_gate_or_source"
     }
   ],
-  "last_bar": "2026-10-26T21:45:00+00:00",
-  "last_source": "cache",
+  "last_bar": "2026-10-26T23:00:00+00:00",
+  "last_source": "dukascopy",
   "reason": "idle"
 }
