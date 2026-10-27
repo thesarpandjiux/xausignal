@@ -254,3 +254,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-26T14:15:12.548377+00:00,261026-1415-N—,NO-TRADE,—,-59.1,-59.1,0.0,4004.24,4004.24,4025.3,3972.65,3951.59,3930.54,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Volatilitas wajar
 2026-10-26T20:29:02.995135+00:00,261026-2029-N—,NO-TRADE,—,-56.8,-56.8,0.0,4013.42,4013.42,4025.3,3993.56,3983.73,3977.58,1.67,4,False,twelvedata,auto,Ditolak syarat wajib: Volatilitas wajar
 2026-10-27T00:25:26.369702+00:00,261027-0025-SB,SELL,B,-66.0,-66.0,0.0,4014.29,4014.29,4025.2,3993.56,3987.72,3977.58,1.9,4,True,twelvedata,auto,
+2026-10-27T06:15:50.572754+00:00,261027-0615-SA,SELL,A,-65.3,-65.3,0.0,4010.33,4010.33,4025.4,3987.72,3977.58,3957.58,1.5,5,True,twelvedata,auto,
