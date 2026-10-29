@@ -140888,9 +140888,22 @@
       "reason": "UNAVAILABLE",
       "detail": "candle M5 terakhir terlalu lama: 11 menit",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-10-29T00:01:23.415770+00:00",
+      "bar_close": "2026-10-29T00:00:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-29T00:00:00+00:00",
+        "m15": "2026-10-29T00:00:00+00:00",
+        "m5": "2026-10-29T00:00:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-28T18:55:00+00:00",
+  "last_bar": "2026-10-29T00:00:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
