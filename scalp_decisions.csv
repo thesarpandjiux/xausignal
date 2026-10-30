@@ -13494,3 +13494,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-10-29T23:45:44.565460+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
 2026-10-29T23:50:48.527831+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
 2026-10-29T23:55:51.458756+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
+2026-10-30T00:00:52.528107+00:00,93be0974b187f15607e3b90594e27ca222e86060,twelvedata,ASIA,belum eligible (0/3 trigger),False,False,ASIA,,,none,null,[],"{""h1"": {""bars"": 400, ""last_open"": ""2026-10-29T23:00:00+00:00""}, ""m15"": {""bars"": 400, ""last_open"": ""2026-10-29T23:45:00+00:00""}, ""m5"": {""bars"": 400, ""last_open"": ""2026-10-29T23:55:00+00:00""}}"
