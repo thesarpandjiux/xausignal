@@ -8,11 +8,6 @@
     "last": {
       "direction": "SELL",
       "time": "2026-10-30T11:25:43.116270+00:00"
-    },
-    "active_setup": {
-      "id": "SELL:20261030T1100:3973.15",
-      "direction": "SELL",
-      "level": 3973.15438
     }
   },
   "candidates": {
@@ -2815,7 +2810,8 @@
       "cost_price": 0.5,
       "entry_latency_seconds": 43.11627,
       "news_mode": "none",
-      "news_event": null
+      "news_event": null,
+      "coverage": "missing/noncontiguous bars; pending"
     }
   },
   "decisions": [
@@ -145857,9 +145853,22 @@
         "m15": "2026-10-30T11:15:00+00:00",
         "m5": "2026-10-30T11:25:00+00:00"
       }
+    },
+    {
+      "time": "2026-10-30T11:30:57.925879+00:00",
+      "bar_close": "2026-10-30T11:30:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-10-30T11:00:00+00:00",
+        "m15": "2026-10-30T11:30:00+00:00",
+        "m5": "2026-10-30T11:30:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-10-30T11:25:00+00:00",
+  "last_bar": "2026-10-30T11:30:00+00:00",
   "last_source": "cache",
-  "reason": "accepted"
+  "reason": "idle"
 }
