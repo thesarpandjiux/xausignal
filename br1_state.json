@@ -150546,6 +150546,12 @@
       "reason": "UNAVAILABLE",
       "detail": "candle M5 terakhir terlalu lama: 3006 menit",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-11-01T23:06:05.623741+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "candle M5 terakhir terlalu lama: 3011 menit",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-10-30T15:50:00+00:00",
