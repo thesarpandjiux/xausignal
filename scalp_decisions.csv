@@ -14279,3 +14279,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
   yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
 2026-11-01T16:31:04.816582+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 2616 menit,False,,,,,,,,not evaluated
 2026-11-01T16:36:04.073563+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 2621 menit,False,,,,,,,,not evaluated
+2026-11-01T16:41:00.847265+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 2626 menit,False,,,,,,,,not evaluated
