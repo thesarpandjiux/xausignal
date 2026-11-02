@@ -271,3 +271,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-10-30T14:07:26.074628+00:00,261030-1407-N—,NO-TRADE,—,-79.8,-79.8,0.0,3910.25,3910.25,3953.03,3846.08,3803.3,3760.52,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; R:R memadai
 2026-10-30T19:21:08.545615+00:00,261030-1921-N—,NO-TRADE,—,-79.0,-79.0,0.0,3887.8,3887.8,3931.08,3822.88,3779.59,3736.31,1.5,4,False,yfinance,auto,Ditolak syarat wajib: Tidak overextended; R:R memadai
 2026-11-01T23:34:59.283627+00:00,261101-2334-N—,NO-TRADE,—,-73.3,-73.3,0.0,3904.6,3904.6,3947.67,3840.0,3796.94,3753.87,1.5,4,False,yfinance,auto,Ditolak syarat wajib: R:R memadai
+2026-11-02T05:59:51.219243+00:00,261102-0559-N—,NO-TRADE,—,-35.4,-35.4,0.0,3914.84,3914.84,3914.84,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
