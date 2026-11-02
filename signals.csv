@@ -273,3 +273,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-11-01T23:34:59.283627+00:00,261101-2334-N—,NO-TRADE,—,-73.3,-73.3,0.0,3904.6,3904.6,3947.67,3840.0,3796.94,3753.87,1.5,4,False,yfinance,auto,Ditolak syarat wajib: R:R memadai
 2026-11-02T05:59:51.219243+00:00,261102-0559-N—,NO-TRADE,—,-35.4,-35.4,0.0,3914.84,3914.84,3914.84,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-11-02T15:49:44.838001+00:00,261102-1549-N—,NO-TRADE,—,-41.0,-41.0,0.0,3957.7,3957.7,3992.82,3890.69,3871.19,3834.79,1.91,2,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; Volatilitas wajar
+2026-11-02T23:29:26.999095+00:00,261102-2329-N—,NO-TRADE,—,-33.8,-49.7,-10.0,3954.4,3954.4,3954.4,,,,,0,False,yfinance,auto,"Skor di bawah ambang, tidak ada setup."
