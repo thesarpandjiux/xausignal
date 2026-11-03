@@ -14912,3 +14912,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
   dukascopy: name 'requests' is not defined
   yfinance: Too Many Requests. Rate limited. Try after a while.",False,,,,,,,,not evaluated
 2026-11-03T20:56:28.638836+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
+2026-11-03T21:01:05.745713+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
