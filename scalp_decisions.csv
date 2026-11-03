@@ -14907,3 +14907,7 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-11-03T20:36:15.990726+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
 2026-11-03T20:41:28.171442+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
 2026-11-03T20:46:25.563477+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 11 menit,False,,,,,,,,not evaluated
+2026-11-03T20:51:30.124349+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,"Semua sumber harga gagal:
+  twelvedata: 429 Client Error: Too Many Requests for url: https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=1h&outputsize=400&apikey=5f51ed0aa40147e09402618173e83050&format=JSON&timezone=UTC
+  dukascopy: name 'requests' is not defined
+  yfinance: Too Many Requests. Rate limited. Try after a while.",False,,,,,,,,not evaluated
