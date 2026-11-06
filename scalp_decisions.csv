@@ -15800,3 +15800,4 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-11-06T22:40:58.672356+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 46 menit,False,,,,,,,,not evaluated
 2026-11-06T22:45:58.328224+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 51 menit,False,,,,,,,,not evaluated
 2026-11-06T22:50:55.726858+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 56 menit,False,,,,,,,,not evaluated
+2026-11-06T22:56:04.398759+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,candle M5 terakhir terlalu lama: 61 menit,False,,,,,,,,not evaluated
