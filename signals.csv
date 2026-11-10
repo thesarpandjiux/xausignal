@@ -290,3 +290,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-11-08T23:42:05.864104+00:00,261108-2342-N—,NO-TRADE,—,-9.8,-9.8,0.0,4075.4,4075.4,4075.4,,,,,0,False,yfinance,auto,"Skor di bawah ambang, tidak ada setup."
 2026-11-09T06:25:16.495097+00:00,261109-0625-N—,NO-TRADE,—,17.6,17.6,0.0,4117.84,4117.84,4117.84,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
 2026-11-09T17:28:07.576633+00:00,261109-1728-N—,NO-TRADE,—,-2.6,-2.6,0.0,4115.7,4115.7,4115.7,,,,,0,False,yfinance,auto,"Skor di bawah ambang, tidak ada setup."
+2026-11-10T01:30:02.750495+00:00,261110-0130-N—,NO-TRADE,—,0.4,0.4,0.0,4139.73,4139.73,4139.73,,,,,0,False,twelvedata,auto,"Skor di bawah ambang, tidak ada setup."
