@@ -3,22 +3,16 @@
   "variant": "BR1",
   "activation_utc": "2026-09-07T14:24:22.001828+00:00",
   "activation_sha": "a656a684e8e462eca7fcb23a9a3669875f1067d1",
-  "pending": {
-    "direction": -1,
-    "level": 4005.29173,
-    "created": "2026-11-11T16:05:00+00:00",
-    "origin_m15": "20261111T1545",
-    "setup_id": "SELL:20261111T1545:4005.29"
-  },
+  "pending": null,
   "native_state": {
     "last": {
       "direction": "SELL",
-      "time": "2026-11-11T12:56:01.770128+00:00"
+      "time": "2026-11-11T16:11:03.563543+00:00"
     },
     "active_setup": {
-      "id": "SELL:20261111T1230:4043.59",
+      "id": "SELL:20261111T1545:4005.29",
       "direction": "SELL",
-      "level": 4043.59425
+      "level": 4005.29173
     }
   },
   "candidates": {
@@ -3088,6 +3082,37 @@
       "news_event": null,
       "coverage": "1/12 closed M5 bars",
       "closed_at": "2026-11-11T13:05:00+00:00"
+    },
+    "BR1:2026-11-11T16:10:00+00:00:SELL": {
+      "id": "BR1:2026-11-11T16:10:00+00:00:SELL",
+      "time": "2026-11-11T16:11:03.563543+00:00",
+      "bar_close": "2026-11-11T16:10:00+00:00",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "direction": "SELL",
+      "grade": "B",
+      "score": 2,
+      "entry": 4005.2874,
+      "sl": 4008.9744743137317,
+      "tp1": 3997.913251372537,
+      "rr1": 2.0,
+      "setup_id": "SELL:20261111T1545:4005.29",
+      "origin": {
+        "direction": -1,
+        "level": 4005.29173,
+        "created": "2026-11-11T16:05:00+00:00",
+        "origin_m15": "20261111T1545",
+        "setup_id": "SELL:20261111T1545:4005.29"
+      },
+      "risk": 3.6870743137315003,
+      "outcome": "PENDING",
+      "gross_r": null,
+      "net_r": null,
+      "horizon_bars": 12,
+      "cost_price": 0.5,
+      "entry_latency_seconds": 63.563543,
+      "news_mode": "none",
+      "news_event": null
     }
   },
   "decisions": [
@@ -178452,9 +178477,22 @@
         "m15": "2026-11-11T16:00:00+00:00",
         "m5": "2026-11-11T16:05:00+00:00"
       }
+    },
+    {
+      "time": "2026-11-11T16:11:03.563543+00:00",
+      "bar_close": "2026-11-11T16:10:00+00:00",
+      "reason": "accepted",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-11-11T16:00:00+00:00",
+        "m15": "2026-11-11T16:00:00+00:00",
+        "m5": "2026-11-11T16:10:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-11-11T16:05:00+00:00",
+  "last_bar": "2026-11-11T16:10:00+00:00",
   "last_source": "cache",
-  "reason": "armed"
+  "reason": "accepted"
 }
