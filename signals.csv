@@ -317,3 +317,4 @@ time,id,direction,grade,composite,tech,news,price,entry,sl,tp1,tp2,tp3,rr1,confi
 2026-11-19T13:03:47.729556+00:00,261119-1303-N—,NO-TRADE,—,-61.2,-61.2,0.0,3719.09,3719.09,3758.86,3659.43,3619.65,3579.88,1.5,3,False,twelvedata,auto,Ditolak syarat wajib: R:R memadai
 2026-11-19T21:31:59.801853+00:00,261119-2131-N—,NO-TRADE,—,-79.8,-79.8,0.0,3653.5,3653.5,3699.0,3585.24,3539.74,3494.24,1.5,4,False,yfinance,auto,Ditolak syarat wajib: Tidak overextended
 2026-11-20T03:13:44.653902+00:00,261120-0313-N—,NO-TRADE,—,-90.6,-90.6,0.0,3525.77,3525.77,3588.0,3432.43,3370.21,3307.98,1.5,4,False,twelvedata,auto,Ditolak syarat wajib: Tidak overextended; R:R memadai
+2026-11-20T12:52:22.394220+00:00,261120-1252-SC,SELL,C,-51.5,-51.5,0.0,3566.96,3566.96,3629.75,3472.77,3409.97,3347.18,1.5,3,True,twelvedata,auto,
