@@ -3599,15 +3599,16 @@
         "setup_id": "SELL:20261124T1600:3567.61"
       },
       "risk": 6.285199609144456,
-      "outcome": "PENDING",
-      "gross_r": null,
-      "net_r": null,
+      "outcome": "LOSS",
+      "gross_r": -1.0,
+      "net_r": -1.0795519682895258,
       "horizon_bars": 12,
       "cost_price": 0.5,
       "entry_latency_seconds": 73.861821,
       "news_mode": "none",
       "news_event": null,
-      "coverage": "missing/noncontiguous bars; pending"
+      "coverage": "12/12 closed M5 bars",
+      "closed_at": "2026-11-24T16:30:00+00:00"
     }
   },
   "decisions": [
@@ -214382,9 +214383,22 @@
       "reason": "UNAVAILABLE",
       "detail": "candle M5 terakhir terlalu lama: 11 menit",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-11-25T00:00:39.249534+00:00",
+      "bar_close": "2026-11-25T00:00:00+00:00",
+      "reason": "idle",
+      "news_mode": "none",
+      "source": "cache",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060",
+      "last_closed": {
+        "h1": "2026-11-25T00:00:00+00:00",
+        "m15": "2026-11-25T00:00:00+00:00",
+        "m5": "2026-11-25T00:00:00+00:00"
+      }
     }
   ],
-  "last_bar": "2026-11-24T16:25:00+00:00",
+  "last_bar": "2026-11-25T00:00:00+00:00",
   "last_source": "cache",
   "reason": "idle"
 }
