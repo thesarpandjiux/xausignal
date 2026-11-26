@@ -220390,6 +220390,12 @@
       "reason": "UNAVAILABLE",
       "detail": "candle M5 terakhir terlalu lama: 916 menit",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-11-26T20:16:06.327161+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "candle M5 terakhir terlalu lama: 921 menit",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-11-26T16:20:00+00:00",
