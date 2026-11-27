@@ -223733,6 +223733,12 @@
       "reason": "UNAVAILABLE",
       "detail": "MARKET_CLOSED",
       "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
+    },
+    {
+      "time": "2026-11-27T23:21:10.655723+00:00",
+      "reason": "UNAVAILABLE",
+      "detail": "MARKET_CLOSED",
+      "source_sha": "93be0974b187f15607e3b90594e27ca222e86060"
     }
   ],
   "last_bar": "2026-11-27T18:00:00+00:00",
