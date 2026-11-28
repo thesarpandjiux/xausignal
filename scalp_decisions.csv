@@ -22072,3 +22072,7 @@ time,source_sha,source,final_reason,live_reason,live_ok,h1_veto,other_blockers,p
 2026-11-28T16:21:09.747520+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-11-28T16:26:07.254648+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
 2026-11-28T16:31:09.956896+00:00,93be0974b187f15607e3b90594e27ca222e86060,,MARKET_CLOSED,Pasar tutup,False,,,,,,,,not evaluated
+2026-11-28T16:36:01.285910+00:00,93be0974b187f15607e3b90594e27ca222e86060,,DATA,"Semua sumber harga gagal:
+  twelvedata: 429 Client Error: Too Many Requests for url: https://api.twelvedata.com/time_series?symbol=XAU%2FUSD&interval=15min&outputsize=400&apikey=5f51ed0aa40147e09402618173e83050&format=JSON&timezone=UTC
+  dukascopy: cannot import name 'INSTRUMENT_FX_METALS_XAU_USD' from 'dukascopy_python.instruments' (/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/dukascopy_python/instruments/__init__.py)
+  yfinance: sumber berganti twelvedata → yfinance di tengah evaluasi (spot XAU/USD vs futures GC=F). Level harga tidak sebanding.",False,,,,,,,,not evaluated
